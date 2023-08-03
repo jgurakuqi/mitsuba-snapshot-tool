@@ -1,0 +1,13 @@
+<!-- Spheric polarized plastic object definition -->
+	<shape type="sphere" id="polarized_plastic_sphere">
+		<float name="radius" value="0.5" /> <!-- Sphere's radius -->
+		<transform name="toWorld">
+			<translate x="0" y="0" z="0" /> <!-- Sphere's position -->
+		</transform>
+		<bsdf type="roughplastic">
+			<float name="intIOR" value="1.49" />
+			<color name="specularReflectance" value="1.0" />
+			<color name="diffuseReflectance" value="0.5" />
+			<boolean name="polarized" value="true" />
+		</bsdf>
+	</shape>
