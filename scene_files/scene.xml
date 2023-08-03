@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene version="0.5.0">
-    <!-- Integrato definition -->
-    <integrator type="stokes">
+    <!-- Integrator definition -->
+    <integrator type="stokes" id="polarized_integrator">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
             <integrator type='path'>
@@ -11,12 +11,12 @@
     </integrator>
 
     <!-- Unpolarized light source -->
-    <emitter type="constant">
+    <emitter type="constant" id="unpolarized_light_source">
         <spectrum name="radiance" value="1.0" />
     </emitter>
 
     <!-- Orthographic Sensor definition -->
-    <sensor type="orthographic">
+    <sensor type="orthographic" id="orthographic_sensor">
         <transform name="toWorld">
             <lookat target='0, 0, 0' origin='5, 5, 5' up='0, 1, 0' />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />

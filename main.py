@@ -5,8 +5,6 @@ import mitsuba as mi
 import torch
 import cv2 as cv
 
-import xml.etree.ElementTree as ET
-
 
 def free_gpu_memory() -> None:
     """
@@ -30,16 +28,18 @@ def extract_layer_as_numpy(
         name (str): Name of the layer to extract.
         pxformat (mitsuba.Bitmap.PixelFormat): Pixel format for the extracted layer.
 
-    Returns:
-        numpy.ndarray: The extracted layer as a NumPy array.
-    """
+    Raises:
+        ValueError: Thrown if the required layer is not found.
 
+    Returns:
+        np.ndarray: The extracted layer as a NumPy array.
+    """
     for layer in film.bitmap(raw=False).split():
         if layer[0] == name:
             return np.array(
                 layer[1].convert(pxformat, mi.Struct.Type.Float32, srgb_gamma=False)
             )
-    raise ValueError(f"Layer -- {name} -- not found")
+    raise ValueError(f"[extract_layer_as_numpy]: Layer -- {name} -- not found")
 
 
 def plot_rgb_image(image: np.ndarray) -> None:
@@ -134,31 +134,43 @@ def capture_scene(
     # return I, S0, S1, S2, S3, normals, positions
 
 
-# def xml_appender(path)
-#     # Parse the XML strings
-#     root_1 = ET.fromstring(xml_file_1)
-#     root_2 = ET.fromstring(xml_file_2)
+def insert_substring(original_string: str, substring: str, index: int) -> str:
+    """
+    Return the original string with the substring inserted in the chosen position.
 
-#     # Append the first XML content as a child of the <scene> tag in the second XML
-#     root_2.append(root_1)
+    Args:
+        original_string (str): Original string to modify.
+        substring (str): Chosen string to insert into original_string.
+        index (int): position where the substring must be inserted.
 
-#     # Convert the updated XML element tree back to a string
-#     updated_xml = ET.tostring(root_2, encoding='unicode')
-
-#     print(updated_xml)
-
-
-def insert_substring(original_string, substring, index):
+    Returns:
+        str: modified string.
+    """
     return original_string[:index] + substring + original_string[index:]
 
 
-def insert_xml_object():
-    # Read content of "ciccio1.xml"
-    with open("scene_no_sphere.xml", "r") as file1:
-        scene_no_sphere = file1.read()
+def raw_xml_abstraction_insert(
+    recipient_file_path: str, sub_file_path: str, final_file_path: str
+) -> None:
+    """
+    Insert the content of the file in the path sub_file_path into the file located in recipient_file_path,
+    storing the result in a new file in the location final_file_path.
+    This insert does not:
+    - Allow to choose the specific tag where to insert. It will always insert the new content inside of
+      the scene tag.
+    - Does not insert the new content in a formatted way, but that is not a problem for Mitsuba 3.
 
-    with open("sphere_conductor.xml", "r") as file2:
-        sphere_conductor = file2.read()
+    Args:
+        recipient_file_path (str): Path to the file whose content will be extended.
+        sub_file_path (str): Path to the file used to extend the recipient.
+        final_file_path (str): Path to the file which will contain the extended content.
+    """
+    print(f"[PATHS]:", recipient_file_path, " ", sub_file_path, " ", final_file_path)
+    with open(recipient_file_path, "r") as scene_file_1:
+        scene_no_sphere = scene_file_1.read()
+
+    with open(sub_file_path, "r") as scene_file_2:
+        sphere_conductor = scene_file_2.read()
 
     scene_no_sphere = insert_substring(
         scene_no_sphere,
@@ -167,21 +179,86 @@ def insert_xml_object():
     )
     # print(f"scene_no_sphere: {scene_no_sphere}")
 
-    with open("scene.xml", "w") as file1:
-        file1.write(scene_no_sphere)
+    with open(final_file_path, "w") as scene_file_to_edit:
+        scene_file_to_edit.write(scene_no_sphere)
+
+
+def id_selective_xml_abstraction_insert(
+    recipient_file_path: str,
+    parent_abstraction_id: str,
+    sub_file_path: str,
+    final_file_path: str,
+    perform_indentation: bool = True,
+    indentation_spaces: int = 4,
+):
+    """
+    Insert the XML content of the file located in sub_file_path into the file located in recipient_file_path,
+    specifically inside of the tag indetified through the given XML id parent_abstraction_id.
+    It's also possible to choose whether the new XML file should be correctly indented, and if so also the
+    number of spaces used by the running system for indentation.
+
+    Args:
+        recipient_file_path (str): Path to the file whose content will be extended.
+        parent_abstraction_id (str): id of the XML tag to locate as parent for the new content.
+        sub_file_path (str): Path to the file used to extend the recipient.
+        final_file_path (str): Path to the file which will contain the extended content.
+        perform_indentation (bool): Tells whether to perform indentation or not. Defaults to True.
+        indentation_spaces (int, optional): Number of spaces used in case of indentation. Defaults to 4.
+
+    Raises:
+        ValueError: Exception thrown if the required id is not found.
+    """
+    with open(sub_file_path, "r") as abstraction_file:
+        abstraction_file_content = abstraction_file.readlines()
+    with open(recipient_file_path, "r") as main_file:
+        lines = main_file.readlines()
+
+    found_line = None
+    white_spaces_number = None
+    for i, line in enumerate(lines):
+        if f'id="{parent_abstraction_id}"' in line:
+            print(f"Found line: {i}")
+            if perform_indentation:
+                white_spaces_number = (
+                    len(lines[i]) - len(lines[i].lstrip()) + indentation_spaces
+                )
+            found_line = i
+            break
+
+    if found_line is not None:
+        if perform_indentation:
+            white_spaces = " " * white_spaces_number
+            abstraction_file_content = [
+                white_spaces + line for line in abstraction_file_content
+            ]
+
+        lines = (
+            lines[: found_line + 1] + abstraction_file_content + lines[found_line + 1 :]
+        )
+        lines = "".join(lines)
+
+        print(f"lines: {lines}")
+        with open(final_file_path, "w") as final_file:
+            final_file.writelines(lines)
+    else:
+        raise ValueError(f"[insert_content_after_id]: LINE not found.")
 
 
 def main() -> None:
-    insert_xml_object()
-    # return
-
-    # camera_width = 1024
-    # camera_height = 768
     DEBUG_STOP_ITERATION = 1
-    camera_width = 1920
-    camera_height = 1080
-    sample_count = 256
-    scene = "scene.xml"
+    camera_width = 1920  # camera_width = 1024
+    camera_height = 1080  # camera_height = 768
+    sample_count = 256  # Higher means better quality
+    scene_files_path = "./scene_files/"
+    recipient_file_path = f"{scene_files_path}scene_no_sphere.xml"
+    sub_file_path = f"{scene_files_path}sphere_conductor.xml"
+    final_scene_path = f"{scene_files_path}scene.xml"
+
+    id_selective_xml_abstraction_insert(
+        recipient_file_path, "unpolarized_light_source", sub_file_path
+    )
+    return
+    raw_xml_abstraction_insert(recipient_file_path, sub_file_path, sub_file_path)
 
     total = len(np.linspace(0, 360, 60))
     print("Start processing:\n")
@@ -191,12 +268,12 @@ def main() -> None:
             return
         print(f"Starting with angle {angle_index + 1}/{total}...")
         capture_scene(
-            scene,
+            final_scene_path,
             index=angle_index,
             camera_width=camera_width,
             camera_height=camera_height,
             angle=current_angle,
-            sample_count=sample_count,  # Increase the sample count for better quality
+            sample_count=sample_count,
         )
         torch.cuda.empty_cache()
         print(f"{angle_index + 1}/{total} processed.\n")
