@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import mitsuba as mi
 import torch
 import cv2 as cv
+import os
 
 
 def free_gpu_memory() -> None:
@@ -57,7 +58,7 @@ def plot_rgb_image(image: np.ndarray) -> None:
 def capture_scene(
     scene_file_path: str,
     index: int,
-    camera_width: int = 1280,
+    camera_width: int = 1024,
     camera_height: int = 720,
     angle: float = 0.0,
     sample_count: int = 16,
@@ -151,7 +152,7 @@ def xml_abstraction_insert(
 
     Args:
         recipient_file_path (str): Path to the file whose content will be extended.
-        identifier (str): id of the XML tag to locate as parent for the new content.
+        identifier (str): XML content to locate in the recipient file.
         sub_file_path (str): Path to the file used to extend the recipient.
         final_file_path (str): Path to the file which will contain the extended content.
         perform_indentation (bool): Tells whether to perform indentation or not. Defaults to True.
@@ -195,8 +196,6 @@ def xml_abstraction_insert(
             + ["\n"]
             + lines[found_line + 1 :]
         )
-        # lines = "".join(lines) # Convert them back to string for the final write.
-
         # print(f"lines: {lines}")
         with open(final_file_path, "w") as final_file:
             final_file.writelines(lines)
@@ -205,30 +204,36 @@ def xml_abstraction_insert(
 
 
 def main() -> None:
-    DEBUG_STOP_ITERATION = 1
-    camera_width = 1920  # camera_width = 1024
-    camera_height = 1080  # camera_height = 768
-    sample_count = 256  # Higher means better quality
+    debug_stop_iteration = 1
+    delete_scene_file = False
+    camera_width = 1920
+    camera_height = 1080
+    sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
-    recipient_file_path = f"{scene_files_path}scene_no_sphere.xml"
-    sub_file_path = f"{scene_files_path}sphere_conductor.xml"
-    final_scene_path = f"{scene_files_path}scene.xml"
+    recipient_file_name = "scene.xml"
+    sub_file_name = "sphere_conductor.xml"
+    final_scene_name = recipient_file_name.replace(".xml", f"_{sub_file_name}")
 
+    # Create scene xml with required objects.
     xml_abstraction_insert(
-        recipient_file_path, "integrator", sub_file_path, final_scene_path
+        recipient_file_path=recipient_file_name,
+        identifier="integrator",
+        sub_file_path=scene_files_path + sub_file_name,
+        final_file_path=scene_files_path + final_scene_name,
     )
-    # return
-    raw_xml_abstraction_insert(recipient_file_path, sub_file_path, sub_file_path)
 
     total = len(np.linspace(0, 360, 60))
     print("Start processing:\n")
+
+    # Start capturing the scene from different angles:
     for angle_index, current_angle in enumerate(np.linspace(0, 360, 60)):
-        if DEBUG_STOP_ITERATION == angle_index:
-            print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {DEBUG_STOP_ITERATION}")
+        if debug_stop_iteration == angle_index:
+            # In case of DEBUG-testing, stops the execution at the required iteration.
+            print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
             return
         print(f"Starting with angle {angle_index + 1}/{total}...")
         capture_scene(
-            final_scene_path,
+            scene_files_path + final_scene_name,
             index=angle_index,
             camera_width=camera_width,
             camera_height=camera_height,
@@ -237,6 +242,18 @@ def main() -> None:
         )
         torch.cuda.empty_cache()
         print(f"{angle_index + 1}/{total} processed.\n")
+
+    if delete_scene_file:
+        del_path = scene_files_path + final_scene_name
+        try:
+            os.remove(del_path)
+            print(f"File '{del_path}' has been successfully deleted.")
+        except FileNotFoundError:
+            print(f"File '{del_path}' not found.")
+        except PermissionError:
+            print(f"Permission denied. Unable to delete '{del_path}'.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
