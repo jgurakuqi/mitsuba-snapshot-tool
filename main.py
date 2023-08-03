@@ -211,13 +211,15 @@ def main() -> None:
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
     recipient_file_name = "scene.xml"
-    sub_file_name = "sphere_conductor.xml"
+    sub_file_name = (
+        "sphere_pplastic.xml"  # ["sphere_conductor.xml", "sphere_conductor.xml"]
+    )
     final_scene_name = recipient_file_name.replace(".xml", f"_{sub_file_name}")
 
     # Create scene xml with required objects.
     xml_abstraction_insert(
-        recipient_file_path=recipient_file_name,
-        identifier="integrator",
+        recipient_file_path=scene_files_path + recipient_file_name,
+        identifier="scene",
         sub_file_path=scene_files_path + sub_file_name,
         final_file_path=scene_files_path + final_scene_name,
     )
