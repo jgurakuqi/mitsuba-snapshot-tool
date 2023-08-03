@@ -134,58 +134,9 @@ def capture_scene(
     # return I, S0, S1, S2, S3, normals, positions
 
 
-def insert_substring(original_string: str, substring: str, index: int) -> str:
-    """
-    Return the original string with the substring inserted in the chosen position.
-
-    Args:
-        original_string (str): Original string to modify.
-        substring (str): Chosen string to insert into original_string.
-        index (int): position where the substring must be inserted.
-
-    Returns:
-        str: modified string.
-    """
-    return original_string[:index] + substring + original_string[index:]
-
-
-def raw_xml_abstraction_insert(
-    recipient_file_path: str, sub_file_path: str, final_file_path: str
-) -> None:
-    """
-    Insert the content of the file in the path sub_file_path into the file located in recipient_file_path,
-    storing the result in a new file in the location final_file_path.
-    This insert does not:
-    - Allow to choose the specific tag where to insert. It will always insert the new content inside of
-      the scene tag.
-    - Does not insert the new content in a formatted way, but that is not a problem for Mitsuba 3.
-
-    Args:
-        recipient_file_path (str): Path to the file whose content will be extended.
-        sub_file_path (str): Path to the file used to extend the recipient.
-        final_file_path (str): Path to the file which will contain the extended content.
-    """
-    print(f"[PATHS]:", recipient_file_path, " ", sub_file_path, " ", final_file_path)
-    with open(recipient_file_path, "r") as scene_file_1:
-        scene_no_sphere = scene_file_1.read()
-
-    with open(sub_file_path, "r") as scene_file_2:
-        sphere_conductor = scene_file_2.read()
-
-    scene_no_sphere = insert_substring(
-        scene_no_sphere,
-        sphere_conductor,
-        -9,
-    )
-    # print(f"scene_no_sphere: {scene_no_sphere}")
-
-    with open(final_file_path, "w") as scene_file_to_edit:
-        scene_file_to_edit.write(scene_no_sphere)
-
-
-def id_selective_xml_abstraction_insert(
+def xml_abstraction_insert(
     recipient_file_path: str,
-    parent_abstraction_id: str,
+    identifier: str,
     sub_file_path: str,
     final_file_path: str,
     perform_indentation: bool = True,
@@ -193,13 +144,14 @@ def id_selective_xml_abstraction_insert(
 ):
     """
     Insert the XML content of the file located in sub_file_path into the file located in recipient_file_path,
-    specifically inside of the tag indetified through the given XML id parent_abstraction_id.
+    specifically inside of the tag indetified through the given identifier, which can be any text. If the used
+    identifier is not unique, the first element located will be selected as insertion point.
     It's also possible to choose whether the new XML file should be correctly indented, and if so also the
     number of spaces used by the running system for indentation.
 
     Args:
         recipient_file_path (str): Path to the file whose content will be extended.
-        parent_abstraction_id (str): id of the XML tag to locate as parent for the new content.
+        identifier (str): id of the XML tag to locate as parent for the new content.
         sub_file_path (str): Path to the file used to extend the recipient.
         final_file_path (str): Path to the file which will contain the extended content.
         perform_indentation (bool): Tells whether to perform indentation or not. Defaults to True.
@@ -208,6 +160,7 @@ def id_selective_xml_abstraction_insert(
     Raises:
         ValueError: Exception thrown if the required id is not found.
     """
+    # Open sub and recipient files as list of strings.
     with open(sub_file_path, "r") as abstraction_file:
         abstraction_file_content = abstraction_file.readlines()
     with open(recipient_file_path, "r") as main_file:
@@ -215,9 +168,10 @@ def id_selective_xml_abstraction_insert(
 
     found_line = None
     white_spaces_number = None
+    # Find the matching abstraction through its id.
     for i, line in enumerate(lines):
-        if f'id="{parent_abstraction_id}"' in line:
-            print(f"Found line: {i}")
+        if identifier in line:
+            # print(f"Found line: {i}")
             if perform_indentation:
                 white_spaces_number = (
                     len(lines[i]) - len(lines[i].lstrip()) + indentation_spaces
@@ -225,19 +179,25 @@ def id_selective_xml_abstraction_insert(
             found_line = i
             break
 
+    # If found, insert the new sub-abstraction, otherwise raise exception.
     if found_line is not None:
         if perform_indentation:
+            # Indent using the found number of spaces.
             white_spaces = " " * white_spaces_number
             abstraction_file_content = [
                 white_spaces + line for line in abstraction_file_content
             ]
 
+        # Concatenate file contents as lists.
         lines = (
-            lines[: found_line + 1] + abstraction_file_content + lines[found_line + 1 :]
+            lines[: found_line + 1]
+            + abstraction_file_content
+            + ["\n"]
+            + lines[found_line + 1 :]
         )
-        lines = "".join(lines)
+        # lines = "".join(lines) # Convert them back to string for the final write.
 
-        print(f"lines: {lines}")
+        # print(f"lines: {lines}")
         with open(final_file_path, "w") as final_file:
             final_file.writelines(lines)
     else:
@@ -254,10 +214,10 @@ def main() -> None:
     sub_file_path = f"{scene_files_path}sphere_conductor.xml"
     final_scene_path = f"{scene_files_path}scene.xml"
 
-    id_selective_xml_abstraction_insert(
-        recipient_file_path, "unpolarized_light_source", sub_file_path
+    xml_abstraction_insert(
+        recipient_file_path, "integrator", sub_file_path, final_scene_path
     )
-    return
+    # return
     raw_xml_abstraction_insert(recipient_file_path, sub_file_path, sub_file_path)
 
     total = len(np.linspace(0, 360, 60))
