@@ -95,7 +95,7 @@ def capture_scene(
             tilt=tilt,
         )
     except Exception as e:
-        print(f"{Fore.LIGHTMAGENTA_EX} Exception: {e}")
+        print(f"{Fore.LIGHTMAGENTA_EX} Exception: {e}.{Fore.WHITE}")
         return
 
     sensor = scene.sensors()[0]
