@@ -7,14 +7,6 @@ import cv2 as cv
 import os
 
 
-def free_gpu_memory() -> None:
-    """
-    Free the GPU's main memory. Should be called after scripts (e.g., Mitsuba's load_file)
-    that don't free memory on their own.
-    """
-    torch.cuda.empty_cache()
-
-
 mi.set_variant("cuda_mono_polarized")
 
 
@@ -110,7 +102,8 @@ def capture_scene(
     normals = extract_layer_as_numpy(film, "nn", mi.Bitmap.PixelFormat.XYZ)
     positions = extract_layer_as_numpy(film, "pos", mi.Bitmap.PixelFormat.XYZ)
 
-    # plot_rgb_image(I)
+    plot_rgb_image(I)
+    return
 
     normals = normals.astype(np.double)
     positions = positions.astype(np.double)
@@ -135,127 +128,55 @@ def capture_scene(
     # return I, S0, S1, S2, S3, normals, positions
 
 
-def xml_abstraction_insert(
-    recipient_file_path: str,
-    identifier: str,
-    sub_file_path: str,
-    final_file_path: str,
-    perform_indentation: bool = True,
-    indentation_spaces: int = 4,
-):
-    """
-    Insert the XML content of the file located in sub_file_path into the file located in recipient_file_path,
-    specifically inside of the tag indetified through the given identifier, which can be any text. If the used
-    identifier is not unique, the first element located will be selected as insertion point.
-    It's also possible to choose whether the new XML file should be correctly indented, and if so also the
-    number of spaces used by the running system for indentation.
-
-    Args:
-        recipient_file_path (str): Path to the file whose content will be extended.
-        identifier (str): XML content to locate in the recipient file.
-        sub_file_path (str): Path to the file used to extend the recipient.
-        final_file_path (str): Path to the file which will contain the extended content.
-        perform_indentation (bool): Tells whether to perform indentation or not. Defaults to True.
-        indentation_spaces (int, optional): Number of spaces used in case of indentation. Defaults to 4.
-
-    Raises:
-        ValueError: Exception thrown if the required id is not found.
-    """
-    # Open sub and recipient files as list of strings.
-    with open(sub_file_path, "r") as abstraction_file:
-        abstraction_file_content = abstraction_file.readlines()
-    with open(recipient_file_path, "r") as main_file:
-        lines = main_file.readlines()
-
-    found_line = None
-    white_spaces_number = None
-    # Find the matching abstraction through its id.
-    for i, line in enumerate(lines):
-        if identifier in line:
-            # print(f"Found line: {i}")
-            if perform_indentation:
-                white_spaces_number = (
-                    len(lines[i]) - len(lines[i].lstrip()) + indentation_spaces
-                )
-            found_line = i
-            break
-
-    # If found, insert the new sub-abstraction, otherwise raise exception.
-    if found_line is not None:
-        if perform_indentation:
-            # Indent using the found number of spaces.
-            white_spaces = " " * white_spaces_number
-            abstraction_file_content = [
-                white_spaces + line for line in abstraction_file_content
-            ]
-
-        # Concatenate file contents as lists.
-        lines = (
-            lines[: found_line + 1]
-            + abstraction_file_content
-            + ["\n"]
-            + lines[found_line + 1 :]
-        )
-        # print(f"lines: {lines}")
-        with open(final_file_path, "w") as final_file:
-            final_file.writelines(lines)
-    else:
-        raise ValueError(f"[insert_content_after_id]: LINE not found.")
-
-
 def main() -> None:
     debug_stop_iteration = 1
-    delete_scene_file = False
-    camera_width = 1920
-    camera_height = 1080
+    # delete_scene_file = False
+    # camera_width = 1920
+    # camera_height = 1080
+    camera_width = 1024
+    camera_height = 768
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
-    recipient_file_name = "scene.xml"
-    sub_file_name = (
-        "sphere_pplastic.xml"  # ["sphere_conductor.xml", "sphere_conductor.xml"]
-    )
-    final_scene_name = recipient_file_name.replace(".xml", f"_{sub_file_name}")
 
-    # Create scene xml with required objects.
-    xml_abstraction_insert(
-        recipient_file_path=scene_files_path + recipient_file_name,
-        identifier="scene",
-        sub_file_path=scene_files_path + sub_file_name,
-        final_file_path=scene_files_path + final_scene_name,
-    )
+    # [persp_pplastic_cube, orth_pplastic_cube, persp_pplastic_sphere, orth_pplastic_sphere, ]
+    # persp_pplastic_dragon
 
-    total = len(np.linspace(0, 360, 60))
+    scene_path = f"{scene_files_path}persp_pplastic_dragon.xml"
+
+    total = len(np.linspace(0, 360, 30))
     print("Start processing:\n")
 
     # Start capturing the scene from different angles:
-    for angle_index, current_angle in enumerate(np.linspace(0, 360, 60)):
+    for angle_index, current_angle in enumerate(np.linspace(0, 360, 30)):
+        torch.cuda.empty_cache()
         if debug_stop_iteration == angle_index:
             # In case of DEBUG-testing, stops the execution at the required iteration.
             print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
             return
         print(f"Starting with angle {angle_index + 1}/{total}...")
         capture_scene(
-            scene_files_path + final_scene_name,
+            # scene_file_path = scene_files_path + final_scene_name,
+            scene_file_path=scene_path,
             index=angle_index,
             camera_width=camera_width,
             camera_height=camera_height,
             angle=current_angle,
             sample_count=sample_count,
         )
-        torch.cuda.empty_cache()
         print(f"{angle_index + 1}/{total} processed.\n")
+        torch.cuda.empty_cache()
 
-    if delete_scene_file:
-        del_path = scene_files_path + final_scene_name
-        try:
-            os.remove(del_path)
-            print(f"File '{del_path}' has been successfully deleted.")
-        except FileNotFoundError:
-            print(f"File '{del_path}' not found.")
-        except PermissionError:
-            print(f"Permission denied. Unable to delete '{del_path}'.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
+    # if delete_scene_file:
+    #     del_path = scene_files_path + final_scene_name
+    #     try:
+    #         os.remove(del_path)
+    #         print(f"File '{del_path}' has been successfully deleted.")
+    #     except FileNotFoundError:
+    #         print(f"File '{del_path}' not found.")
+    #     except PermissionError:
+    #         print(f"Permission denied. Unable to delete '{del_path}'.")
+    #     except Exception as e:
+    #         print(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":

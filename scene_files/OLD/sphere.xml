@@ -1,0 +1,10 @@
+<!-- Spheric conductor object definition -->
+<shape type="sphere">
+    <!-- Sphere's radius -->
+    <float name="radius" value="0.5" />
+    <transform name="toWorld">
+        <!-- Sphere's position -->
+        <translate x="0" y="0" z="0" />
+    </transform>
+
+</shape>

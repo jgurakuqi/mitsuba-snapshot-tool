@@ -1,0 +1,7 @@
+<shape type="cube">
+    <transform name="to_world">
+        <!-- Sphere's position -->
+        <translate x="0" y="0" z="0" />
+    </transform>
+
+</shape>

@@ -1,0 +1,14 @@
+<!-- Spheric polarized plastic object definition -->
+<shape type="sphere" id="polarized_plastic_sphere">
+	<!-- Sphere's radius -->
+	<float name="radius" value="0.5" />
+	<transform name="toWorld">
+		<!-- Sphere's position -->
+		<translate x="0" y="0" z="0" />
+	</transform>
+	<bsdf type="pplastic">
+		<!-- specular reflectance is 1. by default -->
+		<rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" />
+		<float name="alpha" value="0.06" />
+	</bsdf>
+</shape>

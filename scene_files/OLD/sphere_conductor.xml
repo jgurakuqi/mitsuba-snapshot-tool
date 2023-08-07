@@ -1,0 +1,10 @@
+    <!-- Spheric conductor object definition -->
+<shape type="sphere">
+    <float name="radius" value="0.5" /> <!-- Sphere's radius -->
+    <transform name="toWorld">
+        <translate x="0" y="0" z="0" /> <!-- Sphere's position -->
+    </transform>
+    <bsdf type="conductor">
+        <string name="material" value="Au" /> <!-- Conductor's material properties conductor -->
+    </bsdf>
+</shape>

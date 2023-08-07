@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scene version="0.5.0" id="scene">
+    <!-- Cubic conductor object definition -->
+    <shape type="cube" id="conductor_cube">
+        <transform name="to_world">
+            <!-- cube's scale -->
+            <scale x="5.25" y="5.25" z="5.25" />
+            <translate y="10" />
+        </transform>
+        <bsdf type="pplastic">
+            <!-- specular reflectance is 1. by default -->
+            <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" />
+            <float name="alpha" value="0.06" />
+        </bsdf>
+    </shape>
+    <!-- Integrator definition -->
+    <integrator type="stokes" id="polarized_integrator">
+        <integrator type="aov">
+            <string name="aovs" value="nn:geo_normal,pos:position" />
+            <integrator type='path'>
+                <integer name="max_depth" value="17" />
+            </integrator>
+        </integrator>
+    </integrator>
+
+    <!-- Unpolarized light source -->
+    <emitter type="constant" id="unpolarized_light_source">
+        <spectrum name="radiance" value="1.0" />
+    </emitter>
+
+    <!-- perspective Sensor definition -->
+    <sensor type="perspective">
+        <!-- <float name="fov" value="$fov" /> -->
+        <transform name="toWorld">
+            <matrix
+                value="-0.678116 -0.167853 -0.715531 58.206 -4.39487e-008 0.973571 -0.228385 24.9284
+	0.734955 -0.154871 -0.660194 52.9501 0 0 0 1" />
+            <!-- <scale x="0.5" y="0.5" z="0.5" /> -->
+            <translate x="0.0" y="5.0" z="0.0" />
+            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
+            <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />
+        </transform>
+        <film type="hdrfilm">
+            <rfilter type="gaussian">
+                <float name="stddev" value="0.8" />
+            </rfilter>
+            <integer name="width" value="$camera_width" />
+            <integer name="height" value="$camera_height" />
+            <string name="pixel_format" value="luminance" />
+        </film>
+        <sampler type="multijitter">
+            <integer name="sample_count" value="$sample_count" />
+        </sampler>
+    </sensor>
+
+</scene>
