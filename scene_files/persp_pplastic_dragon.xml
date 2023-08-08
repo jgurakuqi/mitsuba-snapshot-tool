@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene version="0.5.0" id="scene">
+    <!-- Pplastic Dragon -->
     <shape type="ply">
-        <string name="filename" value="dragon_vrip.ply" />
+        <string name="filename" value="dragon_vrip_res2_bin.ply" />
         <boolean name="flip_normals" value="false" />
         <transform name="to_world">
-            <!-- Sphere's scale -->
-            <scale x="10." y="10." z="10." />
+            <!-- Make the sphere bigger -->
+            <scale x="2." y="2." z="2." />
+            <!-- Move the dragon a little down -->
+            <translate y="-0.215" />
         </transform>
-        <!-- <transform name="toWorld">
-            <translate x="0" y="10" z="0" /> 
-        </transform> -->
         <bsdf type="pplastic">
             <!-- specular reflectance is 1. by default -->
             <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" />
@@ -17,7 +17,7 @@
         </bsdf>
     </shape>
     <!-- Integrator definition -->
-    <integrator type="stokes" id="polarized_integrator">
+    <integrator type="stokes">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
             <integrator type='path'>
@@ -26,21 +26,21 @@
         </integrator>
     </integrator>
 
-    <!-- Unpolarized light source -->
-    <emitter type="constant" id="unpolarized_light_source">
+    <!-- Light source -->
+    <!-- <emitter type="constant">
         <spectrum name="radiance" value="1.0" />
+    </emitter> -->
+
+    <emitter type="point">
+        <spectrum name="intensity" value="1005000" />
+        <point name="position" x="100." y="100.0" z="100." />
     </emitter>
 
     <!-- perspective Sensor definition -->
     <sensor type="perspective">
         <!-- <float name="fov" value="90" /> -->
         <transform name="toWorld">
-            <!-- <matrix
-                value="-0.678116 -0.167853 -0.715531 58.206 -4.39487e-008 0.973571 -0.228385 24.9284
-	0.734955 -0.154871 -0.660194 52.9501 0 0 0 1" />
-            <translate x="0.0" y="0.0" z="0.0" /> -->
-            <lookat origin="60., 25., 50." target="0, 5, 0" up="1, 0, 0" />
-            <translate x="-30.0" y="-20.0" z="-20.0" />
+            <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
             <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />
         </transform>

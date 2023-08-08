@@ -2,12 +2,12 @@ from colorama import Fore
 import numpy as np
 import matplotlib.pyplot as plt
 import mitsuba as mi
-import torch
+from torch import cuda
 import cv2 as cv
 import os
 
-
-mi.set_variant("cuda_mono_polarized")
+# llvm_mono_polarized, cuda_mono_polarized, scalar_mono_polarized
+mi.set_variant("llvm_mono_polarized")
 
 
 def extract_layer_as_numpy(
@@ -129,26 +129,26 @@ def capture_scene(
 
 
 def main() -> None:
-    debug_stop_iteration = 1
+    debug_stop_iteration = 3
     # delete_scene_file = False
-    # camera_width = 1920
-    # camera_height = 1080
-    camera_width = 1024
-    camera_height = 768
+    camera_width = 1920
+    camera_height = 1080
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
     # [persp_pplastic_cube, orth_pplastic_cube, persp_pplastic_sphere, orth_pplastic_sphere, ]
-    # persp_pplastic_dragon
+    # persp_pplastic_dragon, persp_pplastic_sphere, persp_pplastic_cube
 
-    scene_path = f"{scene_files_path}persp_pplastic_dragon.xml"
+    scene_path = f"{scene_files_path}persp_conductor_cube.xml"
 
-    total = len(np.linspace(0, 360, 30))
+    total = len(range(0, 360, 60))
     print("Start processing:\n")
 
+    cuda.init()
+
     # Start capturing the scene from different angles:
-    for angle_index, current_angle in enumerate(np.linspace(0, 360, 30)):
-        torch.cuda.empty_cache()
+    for angle_index, current_angle in enumerate(range(0, 360, 60)):
+        cuda.empty_cache()
         if debug_stop_iteration == angle_index:
             # In case of DEBUG-testing, stops the execution at the required iteration.
             print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
@@ -164,7 +164,6 @@ def main() -> None:
             sample_count=sample_count,
         )
         print(f"{angle_index + 1}/{total} processed.\n")
-        torch.cuda.empty_cache()
 
     # if delete_scene_file:
     #     del_path = scene_files_path + final_scene_name

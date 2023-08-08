@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene version="0.5.0" id="scene">
     <!-- Spheric conductor object definition -->
-    <shape type="sphere" id="conductor_sphere">
-        <float name="radius" value="6." /> <!-- Sphere's radius -->
+    <shape type="sphere">
+        <!-- Sphere's radius -->
+        <float name="radius" value="6." />
         <transform name="toWorld">
-            <translate x="0" y="10" z="0" /> <!-- Sphere's position -->
+            <scale x="0.4" y="0.4" z="0.4" />
         </transform>
-        <bsdf type="conductor">
-            <string name="material" value="Au" /> <!-- Conductor's material properties conductor -->
+        <bsdf type="roughconductor">
+            <string name="material" value="Ag" /> <!-- Conductor's material properties conductor -->
         </bsdf>
     </shape>
     <!-- Integrator definition -->
-    <integrator type="stokes" id="polarized_integrator">
+    <integrator type="stokes">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
             <integrator type='path'>
@@ -20,20 +21,22 @@
         </integrator>
     </integrator>
 
-    <!-- Unpolarized light source -->
-    <emitter type="constant" id="unpolarized_light_source">
+    <!-- light source -->
+    <!-- <emitter type="constant">
         <spectrum name="radiance" value="1.0" />
+    </emitter> -->
+
+    <!-- Higher intensity for conductor materials -->
+    <emitter type="point">
+        <spectrum name="intensity" value="200000000" />
+        <point name="position" x="100." y="100.0" z="100." />
     </emitter>
 
     <!-- perspective Sensor definition -->
     <sensor type="perspective">
         <!-- <float name="fov" value="$fov" /> -->
         <transform name="toWorld">
-            <matrix
-                value="-0.678116 -0.167853 -0.715531 58.206 -4.39487e-008 0.973571 -0.228385 24.9284
-	0.734955 -0.154871 -0.660194 52.9501 0 0 0 1" />
-            <!-- <scale x="0.5" y="0.5" z="0.5" /> -->
-            <translate x="0.0" y="5.0" z="0.0" />
+            <lookat origin="0, 0, 13." target="0, 0, 0" up="0, 1, 0" />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
             <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />
         </transform>
