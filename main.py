@@ -103,7 +103,7 @@ def capture_scene(
     positions = extract_layer_as_numpy(film, "pos", mi.Bitmap.PixelFormat.XYZ)
 
     plot_rgb_image(I)
-    return
+    # return
 
     normals = normals.astype(np.double)
     positions = positions.astype(np.double)
@@ -142,16 +142,16 @@ def main() -> None:
     # ! orthographic camera scenes
     # _, _, orth_pplastic_sphere, orth_pplastic_cube, orth_conductor_cube, orth_conductor_sphere
 
-    scene_path = f"{scene_files_path}persp_pplastic_armadillo.xml"
+    scene_path = f"{scene_files_path}orth_conductor_sphere.xml"
 
     total = len(range(0, 360, 60))
     print("Start processing:\n")
 
-    cuda.init()
+    # cuda.init()
 
     # Start capturing the scene from different angles:
     for angle_index, current_angle in enumerate(range(0, 360, 60)):
-        cuda.empty_cache()
+        # cuda.empty_cache()
         if debug_stop_iteration == angle_index:
             # In case of DEBUG-testing, stops the execution at the required iteration.
             print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
