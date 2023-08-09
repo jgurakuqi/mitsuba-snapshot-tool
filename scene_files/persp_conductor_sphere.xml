@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<scene version="0.5.0" id="scene">
+<scene version="0.5.0">
     <!-- Spheric conductor object definition -->
     <shape type="sphere">
-        <!-- Sphere's radius -->
         <float name="radius" value="6." />
         <transform name="toWorld">
             <scale x="0.4" y="0.4" z="0.4" />
         </transform>
         <bsdf type="roughconductor">
-            <string name="material" value="Ag" /> <!-- Conductor's material properties conductor -->
+            <string name="material" value="Ag" />
         </bsdf>
     </shape>
     <!-- Integrator definition -->

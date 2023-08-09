@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<scene version="0.5.0" id="scene">
+<scene version="0.5.0">
     <!-- Cubic conductor object definition -->
     <shape type="cube" id="conductor_cube">
         <transform name="to_world">
-            <!-- cube's scale -->
             <scale x="1.8" y="1.8" z="1.8" />
             <translate y="4.5" />
         </transform>

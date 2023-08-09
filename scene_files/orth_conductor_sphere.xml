@@ -1,20 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<scene version="0.5.0" id="scene">
-    <!-- Spheric conductor object definition -->
-    <shape type="sphere" id="conductor_sphere">
-        <!-- Sphere's radius -->
+<scene version="0.5.0">
+
+    <!-- Conductor sphere -->
+    <shape type="sphere">
         <float name="radius" value="0.5" />
         <transform name="toWorld">
-            <!-- Sphere's position -->
             <translate x="0" y="0" z="0" />
         </transform>
-        <bsdf type="conductor">
-            <!-- Conductor's material properties conductor -->
-            <string name="material" value="Au" />
+        <bsdf type="roughconductor">
+            <string name="material" value="Ag" />
         </bsdf>
     </shape>
+
     <!-- Integrator definition -->
-    <integrator type="stokes" id="polarized_integrator">
+    <integrator type="stokes">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
             <integrator type='path'>
@@ -23,13 +22,20 @@
         </integrator>
     </integrator>
 
-    <!-- Unpolarized light source -->
-    <emitter type="constant" id="unpolarized_light_source">
+    <!-- light source -->
+    <!-- <emitter type="constant">
         <spectrum name="radiance" value="1.0" />
+    </emitter> -->
+
+    <!-- Higher intensity for conductor materials -->
+    <emitter type="point">
+        <spectrum name="intensity" value="2000000000000" />
+        <point name="position" x="-100." y="-100.0" z="80." />
     </emitter>
 
+
     <!-- Orthographic Sensor definition -->
-    <sensor type="orthographic" id="orthographic_sensor">
+    <sensor type="orthographic">
         <transform name="toWorld">
             <lookat target='0, 0, 0' origin='5, 5, 5' up='0, 1, 0' />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
