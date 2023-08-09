@@ -129,17 +129,20 @@ def capture_scene(
 
 
 def main() -> None:
-    debug_stop_iteration = 3
+    debug_stop_iteration = 1
     # delete_scene_file = False
     camera_width = 1920
     camera_height = 1080
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
-    # [persp_pplastic_cube, orth_pplastic_cube, persp_pplastic_sphere, orth_pplastic_sphere, ]
-    # persp_pplastic_dragon, persp_pplastic_sphere, persp_pplastic_cube
+    # ! perspective camera scenes
+    # persp_pplastic_dragon, persp_pplastic_armadillo, persp_pplastic_sphere, persp_pplastic_cube, persp_conductor_cube, persp_conductor_sphere
 
-    scene_path = f"{scene_files_path}persp_conductor_cube.xml"
+    # ! orthographic camera scenes
+    # _, _, orth_pplastic_sphere, orth_pplastic_cube, orth_conductor_cube, orth_conductor_sphere
+
+    scene_path = f"{scene_files_path}persp_pplastic_armadillo.xml"
 
     total = len(range(0, 360, 60))
     print("Start processing:\n")
