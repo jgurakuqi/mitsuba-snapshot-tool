@@ -2,9 +2,11 @@ from colorama import Fore
 import numpy as np
 import matplotlib.pyplot as plt
 import mitsuba as mi
-from torch import cuda
+
+# from torch import cuda
 import cv2 as cv
-import os
+
+# import os
 
 # llvm_mono_polarized, cuda_mono_polarized, scalar_mono_polarized
 mi.set_variant("llvm_mono_polarized")
