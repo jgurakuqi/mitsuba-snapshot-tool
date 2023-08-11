@@ -138,16 +138,6 @@ def main() -> None:
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
-    # persp_pplastic_chinese_dragon
-    # persp_pplastic_thai_statue
-    # persp_pplastic_armadillo
-    # persp_pplastic_bunny
-
-    # persp_conductor_bunny
-    # persp_conductor_armadillo
-    # persp_conductor_chinese_dragon
-    # persp_conductor_thai_statue
-
     scene_path = f"{scene_files_path}orth_pplastic_armadillo.xml"
 
     total = len(range(0, 360, 60))
