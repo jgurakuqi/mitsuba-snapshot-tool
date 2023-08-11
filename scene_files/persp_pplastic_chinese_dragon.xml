@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scene version="0.5.0">
+    <!-- Pplastic Dragon -->
+    <shape type="ply">
+        <string name="filename" value="ply_meshes/xyzrgb_dragon_bin_reduced.ply" />
+        <boolean name="flip_normals" value="false" />
+        <transform name="to_world">
+            <scale x="1.2" y="1.2" z="1.2" />
+        </transform>
+        <bsdf type="pplastic">
+            <!-- specular reflectance is 1. by default -->
+            <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" />
+            <float name="alpha" value="0.06" />
+        </bsdf>
+    </shape>
+    <!-- Integrator definition -->
+    <integrator type="stokes">
+        <integrator type="aov">
+            <string name="aovs" value="nn:geo_normal,pos:position" />
+            <integrator type='path'>
+                <integer name="max_depth" value="17" />
+            </integrator>
+        </integrator>
+    </integrator>
+
+    <!-- Light source -->
+    <!-- <emitter type="constant">
+        <spectrum name="radiance" value="3.5" />
+    </emitter> -->
+
+    <emitter type="point">
+        <spectrum name="intensity" value="2000000" />
+        <point name="position" x="90." y="90.0" z="-75." />
+    </emitter>
+
+    <!-- perspective Sensor definition -->
+    <sensor type="perspective">
+        <!-- <float name="fov" value="90" /> -->
+        <transform name="toWorld">
+            <!-- 1.2 to give a slightly skewed view from down -->
+            <lookat origin="0, -0.3, -1." target="0, 0, 0" up="0, 1, 0" />
+            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
+            <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />
+        </transform>
+        <film type="hdrfilm">
+            <rfilter type="gaussian">
+                <float name="stddev" value="0.8" />
+            </rfilter>
+            <integer name="width" value="$camera_width" />
+            <integer name="height" value="$camera_height" />
+            <string name="pixel_format" value="luminance" />
+        </film>
+        <sampler type="multijitter">
+            <integer name="sample_count" value="$sample_count" />
+        </sampler>
+    </sensor>
+
+</scene>

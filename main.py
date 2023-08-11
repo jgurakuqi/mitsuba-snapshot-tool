@@ -45,7 +45,7 @@ def plot_rgb_image(image: np.ndarray) -> None:
         image (numpy.ndarray): The RGB image as a 2D NumPy array.
     """
     plt.imshow(image)
-    plt.axis("off")
+    plt.axis("on")
     plt.show()
 
 
@@ -105,7 +105,7 @@ def capture_scene(
     positions = extract_layer_as_numpy(film, "pos", mi.Bitmap.PixelFormat.XYZ)
 
     plot_rgb_image(I)
-    # return
+    return
 
     normals = normals.astype(np.double)
     positions = positions.astype(np.double)
@@ -134,7 +134,7 @@ def main() -> None:
     debug_stop_iteration = 1
     # delete_scene_file = False
     camera_width = 1920
-    camera_height = 1080
+    camera_height = 1450
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
@@ -144,7 +144,7 @@ def main() -> None:
     # ! orthographic camera scenes
     # _, _, orth_pplastic_sphere, orth_pplastic_cube, orth_conductor_cube, orth_conductor_sphere
 
-    scene_path = f"{scene_files_path}orth_conductor_sphere.xml"
+    scene_path = f"{scene_files_path}persp_pplastic_chinese_dragon.xml"
 
     total = len(range(0, 360, 60))
     print("Start processing:\n")
