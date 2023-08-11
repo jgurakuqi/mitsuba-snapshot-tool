@@ -2,13 +2,11 @@
 <scene version="0.5.0">
     <!-- Pplastic Dragon -->
     <shape type="ply">
-        <string name="filename" value="ply_meshes/armadillo_bin_reduced.ply" />
+        <string name="filename" value="ply_meshes/lucy_bin_resc_reduced_rot.ply" />
         <boolean name="flip_normals" value="false" />
         <transform name="to_world">
-            <!-- The armadillo is gigantic! -->
-            <scale x="3.3" y="3.3" z="3.3" />
-            <!-- Move the armadillo a little down -->
-            <translate y="-0.1" />
+            <scale x="3." y="3." z="3." />
+            <translate x="0.25" y="-0.1" />
         </transform>
         <bsdf type="pplastic">
             <!-- specular reflectance is 1. by default -->
@@ -33,7 +31,7 @@
 
     <emitter type="point">
         <spectrum name="intensity" value="2000000" />
-        <point name="position" x="90." y="90.0" z="-75." />
+        <point name="position" x="90." y="90.0" z="75." />
     </emitter>
 
     <!-- perspective Sensor definition -->
@@ -41,7 +39,7 @@
         <!-- <float name="fov" value="90" /> -->
         <transform name="toWorld">
             <!-- 1.2 to give a slightly skewed view from down -->
-            <lookat origin="0, -0.3, -1." target="0, 0, 0" up="0, 1, 0" />
+            <lookat origin="0, -0.3, 1." target="0, 0, 0" up="0, 1, 0" />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
             <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />
         </transform>

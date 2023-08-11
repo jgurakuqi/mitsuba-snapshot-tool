@@ -43,6 +43,7 @@ def plot_rgb_image(image: np.ndarray) -> None:
     Args:
         image (numpy.ndarray): The RGB image as a 2D NumPy array.
     """
+    # print(set(image.flatten()))
     plt.imshow(image)
     plt.axis("on")
     plt.show()
@@ -137,13 +138,11 @@ def main() -> None:
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
-    # ! perspective camera scenes
-    # persp_pplastic_dragon, persp_pplastic_armadillo, persp_pplastic_sphere, persp_pplastic_cube, persp_conductor_cube, persp_conductor_sphere
+    # persp_pplastic_chinese_dragon
+    # persp_pplastic_thai_statue
+    #
 
-    # ! orthographic camera scenes
-    # _, _, orth_pplastic_sphere, orth_pplastic_cube, orth_conductor_cube, orth_conductor_sphere
-
-    scene_path = f"{scene_files_path}persp_pplastic_chinese_dragon.xml"
+    scene_path = f"{scene_files_path}persp_pplastic_thai_statue.xml"
 
     total = len(range(0, 360, 60))
     print("Start processing:\n")
@@ -168,18 +167,6 @@ def main() -> None:
             sample_count=sample_count,
         )
         print(f"{angle_index + 1}/{total} processed.\n")
-
-    # if delete_scene_file:
-    #     del_path = scene_files_path + final_scene_name
-    #     try:
-    #         os.remove(del_path)
-    #         print(f"File '{del_path}' has been successfully deleted.")
-    #     except FileNotFoundError:
-    #         print(f"File '{del_path}' not found.")
-    #     except PermissionError:
-    #         print(f"Permission denied. Unable to delete '{del_path}'.")
-    #     except Exception as e:
-    #         print(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
