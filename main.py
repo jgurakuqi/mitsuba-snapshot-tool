@@ -140,9 +140,15 @@ def main() -> None:
 
     # persp_pplastic_chinese_dragon
     # persp_pplastic_thai_statue
-    #
+    # persp_pplastic_armadillo
+    # persp_pplastic_bunny
 
-    scene_path = f"{scene_files_path}persp_pplastic_thai_statue.xml"
+    # persp_conductor_bunny
+    # persp_conductor_armadillo
+    # persp_conductor_chinese_dragon
+    # persp_conductor_thai_statue
+
+    scene_path = f"{scene_files_path}orth_pplastic_armadillo.xml"
 
     total = len(range(0, 360, 60))
     print("Start processing:\n")
@@ -158,7 +164,6 @@ def main() -> None:
             return
         print(f"Starting with angle {angle_index + 1}/{total}...")
         capture_scene(
-            # scene_file_path = scene_files_path + final_scene_name,
             scene_file_path=scene_path,
             index=angle_index,
             camera_width=camera_width,

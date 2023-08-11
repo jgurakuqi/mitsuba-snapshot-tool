@@ -2,7 +2,7 @@
 <scene version="0.5.0">
     <!-- Pplastic Dragon -->
     <shape type="ply">
-        <string name="filename" value="ply_meshes/xyzrgb_dragon_bin_resc_reduced.ply" />
+        <string name="filename" value="ply_meshes/chinese_dragon_bin_resc_reduced.ply" />
         <boolean name="flip_normals" value="false" />
         <transform name="to_world">
             <scale x="1.2" y="1.2" z="1.2" />
@@ -10,7 +10,7 @@
         <bsdf type="pplastic">
             <!-- specular reflectance is 1. by default -->
             <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" />
-            <float name="alpha" value="0.06" />
+            <float name="alpha" value="0.25" />
         </bsdf>
     </shape>
     <!-- Integrator definition -->
@@ -30,7 +30,7 @@
 
     <emitter type="point">
         <spectrum name="intensity" value="2000000" />
-        <point name="position" x="90." y="90.0" z="-75." />
+        <point name="position" x="90." y="90.0" z="75." />
     </emitter>
 
     <!-- perspective Sensor definition -->
@@ -38,7 +38,7 @@
         <!-- <float name="fov" value="90" /> -->
         <transform name="toWorld">
             <!-- 1.2 to give a slightly skewed view from down -->
-            <lookat origin="0, -0.3, -1." target="0, 0, 0" up="0, 1, 0" />
+            <lookat origin="0, -0.3, 1." target="0, 0, 0" up="0, 1, 0" />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
             <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />
         </transform>

@@ -2,18 +2,13 @@
 <scene version="0.5.0">
     <!-- Pplastic Dragon -->
     <shape type="ply">
-        <string name="filename" value="dragon_vrip_bin_normfix_3.ply" />
+        <string name="filename" value="ply_meshes/chinese_dragon_bin_resc_reduced.ply" />
         <boolean name="flip_normals" value="false" />
         <transform name="to_world">
-            <!-- Make the sphere bigger -->
-            <scale x="2." y="2." z="2." />
-            <!-- Move the dragon a little down -->
-            <translate y="-0.215" />
+            <scale x="1.2" y="1.2" z="1.2" />
         </transform>
-        <bsdf type="pplastic">
-            <!-- specular reflectance is 1. by default -->
-            <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" />
-            <float name="alpha" value="0.06" />
+        <bsdf type="roughconductor">
+            <string name="material" value="W" />
         </bsdf>
     </shape>
     <!-- Integrator definition -->
@@ -27,20 +22,16 @@
     </integrator>
 
     <!-- Light source -->
-    <!-- <emitter type="constant">
-        <spectrum name="radiance" value="5.0" />
-    </emitter> -->
-
-    <emitter type="point">
-        <spectrum name="intensity" value="1005000" />
-        <point name="position" x="90." y="90.0" z="75." />
+    <emitter type="constant">
+        <spectrum name="radiance" value="1." />
     </emitter>
 
     <!-- perspective Sensor definition -->
     <sensor type="perspective">
         <!-- <float name="fov" value="90" /> -->
         <transform name="toWorld">
-            <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
+            <!-- 1.2 to give a slightly skewed view from down -->
+            <lookat origin="0, -0.3, 1." target="0, 0, 0" up="0, 1, 0" />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
             <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />
         </transform>
