@@ -131,14 +131,20 @@ def capture_scene(
 
 
 def main() -> None:
-    debug_stop_iteration = 1
+    debug_stop_iteration = 2
     # delete_scene_file = False
     camera_width = 1920
     camera_height = 1450
     sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
-    scene_path = f"{scene_files_path}orth_pplastic_armadillo.xml"
+    chosen_shape = "armadillo"  # dragon, thai, armadillo, sphere, cube
+    chosen_camera = "orth"  # orth, persp
+    chosen_material = "pplastic"  # pplastic, conductor
+
+    scene_path = (
+        f"{scene_files_path}{chosen_shape}_{chosen_camera}_{chosen_material}.xml"
+    )
 
     total = len(range(0, 360, 60))
     print("Start processing:\n")
