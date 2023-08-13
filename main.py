@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mitsuba as mi
 
-# from torch import cuda
+from torch import cuda
+
 # import os
 import cv2 as cv
 
 # llvm_mono_polarized, cuda_mono_polarized, scalar_mono_polarized
-mi.set_variant("llvm_mono_polarized")
+mi.set_variant("cuda_mono_polarized")
 
 
 def extract_layer_as_numpy(
@@ -44,6 +45,7 @@ def plot_rgb_image(image: np.ndarray) -> None:
         image (numpy.ndarray): The RGB image as a 2D NumPy array.
     """
     # print(set(image.flatten()))
+    image = image / 5.0
     plt.imshow(image)
     plt.axis("on")
     plt.show()
@@ -131,29 +133,30 @@ def capture_scene(
 
 
 def main() -> None:
-    debug_stop_iteration = 2
+    debug_stop_iteration = 3
     # delete_scene_file = False
     camera_width = 1920
     camera_height = 1450
-    sample_count = 16  # Higher means better quality - 256
+    sample_count = 256  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
-    chosen_shape = "armadillo"  # dragon, thai, armadillo, sphere, cube
+    chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
     chosen_camera = "orth"  # orth, persp
-    chosen_material = "pplastic"  # pplastic, conductor
+    chosen_material = "conductor"  # pplastic, conductor
 
     scene_path = (
         f"{scene_files_path}{chosen_shape}_{chosen_camera}_{chosen_material}.xml"
     )
 
     total = len(range(0, 360, 60))
+    total = total if total < debug_stop_iteration else debug_stop_iteration
     print("Start processing:\n")
 
     # cuda.init()
 
     # Start capturing the scene from different angles:
     for angle_index, current_angle in enumerate(range(0, 360, 60)):
-        # cuda.empty_cache()
+        cuda.empty_cache()
         if debug_stop_iteration == angle_index:
             # In case of DEBUG-testing, stops the execution at the required iteration.
             print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
