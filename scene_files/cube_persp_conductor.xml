@@ -21,15 +21,8 @@
     </integrator>
 
     <!-- light source -->
-    <!-- <emitter type="constant">
+    <emitter type="constant">
         <spectrum name="radiance" value="1.0" />
-    </emitter> -->
-
-    <!-- Higher intensity for conductor materials -->
-    <emitter type="point">
-        <spectrum name="intensity" value="20000000000" />
-        <!-- <point name="position" x="100." y="100.0" z="100." /> -->
-        <point name="position" x="50." y="-15.0" z="100." />
     </emitter>
 
     <!-- perspective Sensor definition -->

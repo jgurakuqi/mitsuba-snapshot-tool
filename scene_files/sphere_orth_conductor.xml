@@ -27,13 +27,6 @@
         <spectrum name="radiance" value="1.0" />
     </emitter>
 
-    <!-- Higher intensity for conductor materials -->
-    <!-- <emitter type="point">
-        <spectrum name="intensity" value="2000000000000" />
-        <point name="position" x="-100." y="-100.0" z="80." />
-    </emitter> -->
-
-
     <!-- Orthographic Sensor definition -->
     <sensor type="orthographic">
         <transform name="toWorld">

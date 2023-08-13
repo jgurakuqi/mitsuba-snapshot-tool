@@ -22,13 +22,8 @@
     </integrator>
 
     <!-- light source -->
-    <!-- <emitter type="constant">
+    <emitter type="constant">
         <spectrum name="radiance" value="1.0" />
-    </emitter> -->
-
-    <emitter type="point">
-        <spectrum name="intensity" value="2000000000000" />
-        <point name="position" x="-8." y="-7.5" z="10." />
     </emitter>
 
     <!-- Orthographic Sensor definition -->
