@@ -8,8 +8,9 @@ from torch import cuda
 # import os
 import cv2 as cv
 
-# llvm_mono_polarized, cuda_mono_polarized, scalar_mono_polarized
-mi.set_variant("cuda_mono_polarized")
+# llvm_mono_polarized, cuda_mono_polarized, llvm_mono_polarized_double, cuda_mono_polarized_double,
+# llvm_spectral_polarized, cuda_spectral_polarized, llvm_spectral_polarized_double, cuda_spectral_polarized_double,
+mi.set_variant("cuda_spectral_polarized")
 
 
 def extract_layer_as_numpy(
@@ -45,7 +46,6 @@ def plot_rgb_image(image: np.ndarray) -> None:
         image (numpy.ndarray): The RGB image as a 2D NumPy array.
     """
     # print(set(image.flatten()))
-    image = image / 5.0
     plt.imshow(image)
     plt.axis("on")
     plt.show()
@@ -133,16 +133,16 @@ def capture_scene(
 
 
 def main() -> None:
-    debug_stop_iteration = 3
+    debug_stop_iteration = 1
     # delete_scene_file = False
     camera_width = 1920
     camera_height = 1450
-    sample_count = 256  # Higher means better quality - 256
+    sample_count = 16  # Higher means better quality - 256
     scene_files_path = "./scene_files/"
 
     chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
-    chosen_camera = "orth"  # orth, persp
-    chosen_material = "conductor"  # pplastic, conductor
+    chosen_camera = "persp"  # orth, persp
+    chosen_material = "pplastic"  # pplastic, conductor
 
     scene_path = (
         f"{scene_files_path}{chosen_shape}_{chosen_camera}_{chosen_material}.xml"
