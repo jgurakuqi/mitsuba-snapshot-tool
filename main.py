@@ -143,10 +143,12 @@ def main() -> None:
     chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
     chosen_camera = "persp"  # orth, persp
     chosen_material = "pplastic"  # pplastic, conductor
+    polarization_type = ""  # , ext_lens
 
-    scene_path = (
-        f"{scene_files_path}{chosen_shape}_{chosen_camera}_{chosen_material}.xml"
-    )
+    if polarization_type != "":
+        polarization_type = f"_{polarization_type}"
+
+    scene_path = f"{scene_files_path}{chosen_shape}/{chosen_camera}_{chosen_material}{polarization_type}.xml"
 
     total = len(range(0, 360, 60))
     total = total if total < debug_stop_iteration else debug_stop_iteration

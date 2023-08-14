@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene version="0.5.0">
-    <!-- Pplastic armadillo -->
+    <!-- Pplastic Dragon -->
     <shape type="ply">
-        <string name="filename" value="ply_meshes/armadillo_bin_resc_rot.ply" />
+        <string name="filename" value="bunny_bin.ply" />
         <boolean name="flip_normals" value="false" />
         <transform name="to_world">
-            <scale x="5.5" y="5.5" z="5.5" />
-            <!-- Move the armadillo a little down -->
-            <translate y="-0.12" />
+            <scale x="6." y="6." z="6." />
+            <translate x="0.07" y="-0.6" />
         </transform>
         <bsdf type="roughconductor">
             <string name="material" value="W" />
         </bsdf>
     </shape>
-
     <!-- Integrator definition -->
     <integrator type="stokes">
         <integrator type="aov">

@@ -2,7 +2,7 @@
 <scene version="0.5.0">
     <!-- Pplastic Dragon -->
     <shape type="ply">
-        <string name="filename" value="ply_meshes/bunny_bin.ply" />
+        <string name="filename" value="bunny_bin.ply" />
         <boolean name="flip_normals" value="false" />
         <transform name="to_world">
             <scale x="6." y="6." z="6." />

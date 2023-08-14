@@ -2,17 +2,17 @@
 <scene version="0.5.0">
     <!-- Pplastic Dragon -->
     <shape type="ply">
-        <string name="filename" value="ply_meshes/chinese_dragon.ply" />
+        <string name="filename" value="bunny_bin.ply" />
         <boolean name="flip_normals" value="false" />
         <transform name="to_world">
-            <scale x="1.2" y="1.2" z="1.2" />
+            <scale x="3." y="3." z="3." />
+            <translate x="0.07" y="-0.35" />
         </transform>
-        <bsdf type="pplastic">
-            <!-- specular reflectance is 1. by default -->
-            <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" />
-            <float name="alpha" value="0.25" />
+        <bsdf type="roughconductor">
+            <string name="material" value="W" />
         </bsdf>
     </shape>
+
     <!-- Integrator definition -->
     <integrator type="stokes">
         <integrator type="aov">
@@ -24,13 +24,8 @@
     </integrator>
 
     <!-- Light source -->
-    <!-- <emitter type="constant">
-        <spectrum name="radiance" value="3.5" />
-    </emitter> -->
-
-    <emitter type="point">
-        <spectrum name="intensity" value="2000000" />
-        <point name="position" x="90." y="90.0" z="75." />
+    <emitter type="constant">
+        <spectrum name="radiance" value="1." />
     </emitter>
 
     <!-- perspective Sensor definition -->
