@@ -10,7 +10,7 @@ import cv2 as cv
 
 # llvm_mono_polarized, cuda_mono_polarized, llvm_mono_polarized_double, cuda_mono_polarized_double,
 # llvm_spectral_polarized, cuda_spectral_polarized, llvm_spectral_polarized_double, cuda_spectral_polarized_double,
-mi.set_variant("cuda_spectral_polarized")
+mi.set_variant("cuda_spectral_polarized_double")
 
 
 def extract_layer_as_numpy(
@@ -102,15 +102,17 @@ def capture_scene(
     S0 = extract_layer_as_numpy(film, "S0", mi.Bitmap.PixelFormat.Y)
     S1 = extract_layer_as_numpy(film, "S1", mi.Bitmap.PixelFormat.Y)
     S2 = extract_layer_as_numpy(film, "S2", mi.Bitmap.PixelFormat.Y)
-    # S3 = extract_layer_as_numpy(film, "S3", mi.Bitmap.PixelFormat.Y)
     normals = extract_layer_as_numpy(film, "nn", mi.Bitmap.PixelFormat.XYZ)
     positions = extract_layer_as_numpy(film, "pos", mi.Bitmap.PixelFormat.XYZ)
 
     plot_rgb_image(I)
-    return
+    # return
 
     normals = normals.astype(np.double)
     positions = positions.astype(np.double)
+
+    # ! Added to prevent Zero-Divisions in Dolp computation.
+    S0[S0 == 0] = 1e-15
 
     aolp = 0.5 * np.arctan2(S2, S1)
     dolp = np.sqrt(S1**2 + S2**2) / S0
