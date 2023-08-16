@@ -112,7 +112,7 @@ def capture_scene(
     positions = positions.astype(np.double)
 
     # ! Added to prevent Zero-Divisions in Dolp computation.
-    S0[S0 == 0] = 1e-15
+    S0[S0 == 0] = np.finfo(float).eps
 
     aolp = 0.5 * np.arctan2(S2, S1)
     dolp = np.sqrt(S1**2 + S2**2) / S0
