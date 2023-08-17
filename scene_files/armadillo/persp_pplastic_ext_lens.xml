@@ -29,6 +29,22 @@
         <point name="position" x="90." y="90.0" z="75." />
     </emitter>
 
+    <!-- Polarized Lens -->
+    <shape type="sphere">
+        <point name="center" x="0" y="-0.3" z="0.9" />
+        <float name="radius" value="2" />
+        <transform name="toWorld">
+            <!-- lens shape -->
+            <scale x="1." y="1." z="-0.01" />
+            <!-- Placed in front of the camera -->
+            <!-- <translate x="0" y="-0.3" z="0.9" /> -->
+        </transform>
+        <bsdf type="dielectric">
+            <float name="intIOR" value="1.0" />
+            <float name="extIOR" value="1.5" />
+        </bsdf>
+    </shape>
+
     <!-- perspective Sensor definition -->
     <sensor type="perspective">
         <!-- <float name="fov" value="90" /> -->

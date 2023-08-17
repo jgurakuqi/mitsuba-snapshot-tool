@@ -8,6 +8,8 @@ from torch import cuda
 # import os
 import cv2 as cv
 
+from scipy.io import savemat
+
 # llvm_mono_polarized, cuda_mono_polarized, llvm_mono_polarized_double, cuda_mono_polarized_double,
 # llvm_spectral_polarized, cuda_spectral_polarized, llvm_spectral_polarized_double, cuda_spectral_polarized_double,
 mi.set_variant("cuda_spectral_polarized_double")
@@ -122,6 +124,33 @@ def capture_scene(
     cv.imwrite(f"imgs/S0_{index}.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
     cv.imwrite(f"imgs/DOLP_{index}.png", (dolp * 255).astype(np.uint8))
 
+    # # print(S0.shape, type(S0))
+    # # S0_gray = cv.cvtColor(S0, cv.COLOR_RGB2GRAY)
+    # S0_scaled = np.clip(S0 * 255, 0, 255).astype(np.uint8)
+    # spec = cv.threshold(S0_scaled, 250, 1, cv.THRESH_BINARY)[1]
+
+    # binarized_logic = np.ndarray(S0_scaled.shape, dtype=bool)
+    # spec_logic = np.ndarray(S0_scaled.shape, dtype=bool)
+
+    # binarized_logic[::] = False
+    # binarized_logic[
+    #     cv.threshold(S0_scaled, 0, 1, cv.THRESH_OTSU + cv.THRESH_BINARY)[1] == 1
+    # ] = True
+
+    # spec_logic[::] = False
+    # spec_logic[spec == 1] = True
+
+    # savemat(
+    #     "imgs/data.mat",
+    #     {
+    #         "S0": S0,
+    #         "dolp": dolp,
+    #         "aolp": aolp,
+    #         "mask": binarized_logic,
+    #         "spec": spec_logic,
+    #     },
+    # )
+
     angle_n = cv.applyColorMap(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
     )
@@ -129,9 +158,7 @@ def capture_scene(
 
     cv.imwrite(f"imgs/N_{index}.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
 
-    np.savez(f"imgs/stokes_{index}.npz", S0=S0, S1=S1, S2=S2, dolp=dolp, aolp=aolp)
-    # print(f"I: {I}, S0: {S0}, S1: {S1}, S2: {S2}, S3: {S3}\n\n")
-    # return I, S0, S1, S2, S3, normals, positions
+    # np.savez(f"imgs/stokes_{index}.npz", S0=S0, S1=S1, S2=S2, dolp=dolp, aolp=aolp)
 
 
 def main() -> None:
