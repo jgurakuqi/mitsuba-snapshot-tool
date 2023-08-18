@@ -7,7 +7,12 @@ import mitsuba as mi
 from scipy.io import savemat
 
 
-def calc_priors(
+# Channels 1,2,3 = Diffuse solution
+# Channels 4,5,6 = 1st Specular Solution
+# Channels 7,8,9 = 2nd Specular Solution.
+
+
+def compute_priors(
     aolp: np.ndarray, dolp: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -21,7 +26,8 @@ def calc_priors(
     Returns:
         tuple[np.ndarray, np.ndarray, np.ndarray]: normals_diffuse, normals_spec1, normals_spec2 priors.
     """
-    n = 1.5  # refractive index
+    # refractive index assumed to be ~ 1.5
+    n = 1.5
 
     # solve for rho and phi
     phi = aolp
@@ -139,7 +145,7 @@ def capture_scene(
     positions = utils.extract_layer_as_numpy(film, "pos", mi.Bitmap.PixelFormat.XYZ)
 
     utils.plot_rgb_image(I)
-    return
+    # return
 
     normals = normals.astype(np.double)
     positions = positions.astype(np.double)
@@ -155,39 +161,28 @@ def capture_scene(
     cv.imwrite(f"imgs/S0_{index}.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
     cv.imwrite(f"imgs/DOLP_{index}.png", (dolp * 255).astype(np.uint8))
 
-    # # print(S0.shape, type(S0))
-    # # S0_gray = cv.cvtColor(S0, cv.COLOR_RGB2GRAY)
-    # S0_scaled = np.clip(S0 * 255, 0, 255).astype(np.uint8)
-    # spec = cv.threshold(S0_scaled, 250, 1, cv.THRESH_BINARY)[1]
-
-    # binarized_logic = np.ndarray(S0_scaled.shape, dtype=bool)
-    # spec_logic = np.ndarray(S0_scaled.shape, dtype=bool)
-
-    # binarized_logic[::] = False
-    # binarized_logic[
-    #     cv.threshold(S0_scaled, 0, 1, cv.THRESH_OTSU + cv.THRESH_BINARY)[1] == 1
-    # ] = True
-
-    # spec_logic[::] = False
-    # spec_logic[spec == 1] = True
-
-    # savemat(
-    #     "imgs/data.mat",
-    #     {
-    #         "S0": S0,
-    #         "dolp": dolp,
-    #         "aolp": aolp,
-    #         "mask": binarized_logic,
-    #         "spec": spec_logic,
-    #     },
-    # )
-
     angle_n = cv.applyColorMap(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
     )
     cv.imwrite(f"imgs/AOLP_{index}.png", angle_n)
 
     cv.imwrite(f"imgs/N_{index}.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
+
+    S0_scaled = np.clip(S0 * 255.0, 0, 255).astype(np.uint8)
+    if scene_file_path.find("conductor"):
+        # For conductors:
+        mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_OTSU + cv.THRESH_BINARY_INV)[1]
+    else:
+        # For pplastics:
+        mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_BINARY)[1]
+
+    utils.plot_rgb_image(mask)
+
+    mask[mask == 255] = True
+    mask[mask == 0] = False
+
+    # savemat( "imgs/data.mat", { "S0": S0, "dolp": dolp, "aolp": aolp, "mask": binarized_logic,
+    #         "spec": spec_logic, }, )
 
     # np.savez(f"imgs/stokes_{index}.npz", S0=S0, S1=S1, S2=S2, dolp=dolp, aolp=aolp)
 
@@ -200,9 +195,9 @@ def main() -> None:
     sample_count = 16  # Higher means better quality - 16, 156, 256
     scene_files_path = "./scene_files/"
 
-    chosen_shape = "cube"  # dragon, thai, armadillo, sphere, cube
-    chosen_camera = "orth"  # orth, persp
-    chosen_material = "pplastic"  # pplastic, conductor
+    chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
+    chosen_camera = "persp"  # orth, persp
+    chosen_material = "conductor"  # pplastic, conductor
     polarization_type = ""  # , ext_lens
 
     if polarization_type != "":
