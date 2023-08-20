@@ -7,87 +7,78 @@ import mitsuba as mi
 from scipy.io import savemat
 
 
-# Channels 1,2,3 = Diffuse solution
-# Channels 4,5,6 = 1st Specular Solution
-# Channels 7,8,9 = 2nd Specular Solution.
-
-
-def compute_priors(
-    aolp: np.ndarray, dolp: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def write_output_data(
+    scene_file_path: str,
+    I: np.ndarray,
+    S0: np.ndarray,
+    S1: np.ndarray,
+    S2: np.ndarray,
+    normals: np.ndarray,
+    positions: np.ndarray,
+    index: int,
+) -> None:
     """
-    Calculate the physical priors based on Angle of Linear Polarization (aolp) and
-    Degree of Linear Polarization (dolp).
+    Use the extracted layers from the rendered scene to compute and store information such
+    as the Degree and Angle of linear polarization, normals and other data.
 
     Args:
-        aolp (np.ndarray): Angle of Linear Polarisation
-        dolp (np.ndarray): Degree of Linear Polarisation
-
-    Returns:
-        tuple[np.ndarray, np.ndarray, np.ndarray]: normals_diffuse, normals_spec1, normals_spec2 priors.
+        scene_file_path (str): Path to the scene file to render.
+        I (np.ndarray): Intensities.
+        S0 (np.ndarray): Stoke 0
+        S1 (np.ndarray): Stoke 1
+        S2 (np.ndarray): Stoke 2
+        normals (np.ndarray): _description_
+        positions (np.ndarray): _description_
+        index (int): index of the current snapshot angle, used to define the path.
     """
-    # refractive index assumed to be ~ 1.5
-    n = 1.5
+    utils.plot_rgb_image(I)
+    # return
 
-    # solve for rho and phi
-    phi = aolp
-    rho = dolp
+    normals = normals.astype(np.double)
+    positions = positions.astype(np.double)
 
-    # Calculate diffuse reflection solution
-    # Solve for the angle of incidence (theta)
-    num = (n - 1 / n) ** 2
-    den = 2 * rho * n**2 - rho * (n + 1 / n) ** 2 + 2 * rho
-    sin_theta_diffuse_sq = num / den
-    sin_theta_diffuse = np.sqrt(sin_theta_diffuse_sq)
-    cos_theta_diffuse = np.sqrt(1 - sin_theta_diffuse_sq)
-    theta_diffuse = np.arcsin(sin_theta_diffuse)
+    # ! Added to prevent Zero-Divisions in Dolp computation.
+    S0[S0 == 0] = np.finfo(float).eps
 
-    # Calculate specular reflection solutions
-    # Adjust angle of polarization for specular reflections
-    phi_spec = phi + np.pi / 2
+    aolp = 0.5 * np.arctan2(S2, S1)
+    dolp = np.sqrt(S1**2 + S2**2) / S0
+    # dolp[S0==0] = 0
 
-    # Generate a range of possible sin_theta values
-    sin_theta_spec = np.linspace(-1, 1, 1000)
-
-    # Calculate corresponding rho values for specular reflections
-    rho_spec = (
-        2
-        * sin_theta_spec**2
-        * np.sqrt(n**2 - sin_theta_spec**2)
-        / (n**2 - sin_theta_spec**2 + 2 * sin_theta_spec**4)
+    angle_n = cv.applyColorMap(
+        ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
     )
 
-    # Interpolate to find angles of incidence for specular reflections
-    theta_spec1, theta_spec2 = np.interp(
-        rho, rho_spec, np.arcsin(sin_theta_spec), left=np.nan, right=np.nan
-    )
+    cv.imwrite(f"imgs/I_{index}.png", np.clip(I * 255, 0, 255).astype(np.uint8))
+    cv.imwrite(f"imgs/S0_{index}.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
+    cv.imwrite(f"imgs/DOLP_{index}.png", (dolp * 255).astype(np.uint8))
+    cv.imwrite(f"imgs/AOLP_{index}.png", angle_n)
+    cv.imwrite(f"imgs/N_{index}.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
 
-    # Calculate normal vectors for different reflections
-    normals_diffuse = np.stack(
-        [
-            np.cos(phi) * sin_theta_diffuse,
-            np.sin(phi) * sin_theta_diffuse,
-            cos_theta_diffuse,
-        ],
-        axis=-1,
+    # S0_scaled = np.clip(dolp * 255.0, 0, 255).astype(np.uint8)
+    # if scene_file_path.find("conductor"):
+    #     # For conductors:
+    #     mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_OTSU + cv.THRESH_BINARY_INV)[1]
+    # else:
+    #     # For pplastics:
+    #     mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_BINARY)[1]
+
+    mask = dolp.copy()
+    mask[mask > 0.0] = 255.0
+
+    utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
+
+    mask = mask.astype(bool)
+
+    savemat(
+        "imgs/data.mat",
+        {
+            "images": S0,
+            "dolp": dolp,
+            "aolp": aolp,
+            "mask": mask,
+            "spec": mask,
+        },
     )
-    normals_spec1 = np.stack(
-        [
-            np.cos(phi_spec) * np.sin(theta_spec1),
-            np.sin(phi_spec) * np.sin(theta_spec1),
-            np.cos(theta_spec1),
-        ],
-        axis=-1,
-    )
-    normals_spec2 = np.stack(
-        [
-            np.cos(phi_spec) * np.sin(theta_spec2),
-            np.sin(phi_spec) * np.sin(theta_spec2),
-            np.cos(theta_spec2),
-        ],
-        axis=-1,
-    )
-    return normals_diffuse, normals_spec1, normals_spec2
 
 
 def capture_scene(
@@ -121,6 +112,7 @@ def capture_scene(
             - positions: Surface positions
     """
     try:
+        # Capture the scene.
         scene = mi.load_file(
             scene_file_path,
             camera_width=camera_width,
@@ -129,62 +121,38 @@ def capture_scene(
             sample_count=sample_count,
             tilt=tilt,
         )
+
+        sensor = scene.sensors()[0]
+        scene.integrator().render(scene, sensor)
+        film = sensor.film()
+
+        # Extract the film's layers (i.e., stokes, normals, etc...).
+        layers_dict = utils.extract_chosen_layers_as_numpy(
+            film,
+            {
+                "<root>": mi.Bitmap.PixelFormat.RGB,
+                "S0": mi.Bitmap.PixelFormat.Y,
+                "S1": mi.Bitmap.PixelFormat.Y,
+                "S2": mi.Bitmap.PixelFormat.Y,
+                "nn": mi.Bitmap.PixelFormat.XYZ,
+                "pos": mi.Bitmap.PixelFormat.XYZ,
+            },
+        )
+
+        # Produce the output data based on the extracted layers.
+        write_output_data(
+            scene_file_path=scene_file_path,
+            I=layers_dict["<root>"],
+            S0=layers_dict["S0"],
+            S1=layers_dict["S1"],
+            S2=layers_dict["S2"],
+            normals=layers_dict["nn"],
+            positions=layers_dict["pos"],
+            index=index,
+        )
     except Exception as e:
         print(f"{Fore.LIGHTMAGENTA_EX} Exception: {e}.{Fore.WHITE}")
         return
-
-    sensor = scene.sensors()[0]
-    scene.integrator().render(scene, sensor)
-    film = sensor.film()
-
-    I = utils.extract_layer_as_numpy(film, "<root>", mi.Bitmap.PixelFormat.RGB)
-    S0 = utils.extract_layer_as_numpy(film, "S0", mi.Bitmap.PixelFormat.Y)
-    S1 = utils.extract_layer_as_numpy(film, "S1", mi.Bitmap.PixelFormat.Y)
-    S2 = utils.extract_layer_as_numpy(film, "S2", mi.Bitmap.PixelFormat.Y)
-    normals = utils.extract_layer_as_numpy(film, "nn", mi.Bitmap.PixelFormat.XYZ)
-    positions = utils.extract_layer_as_numpy(film, "pos", mi.Bitmap.PixelFormat.XYZ)
-
-    utils.plot_rgb_image(I)
-    # return
-
-    normals = normals.astype(np.double)
-    positions = positions.astype(np.double)
-
-    # ! Added to prevent Zero-Divisions in Dolp computation.
-    S0[S0 == 0] = np.finfo(float).eps
-
-    aolp = 0.5 * np.arctan2(S2, S1)
-    dolp = np.sqrt(S1**2 + S2**2) / S0
-    # dolp[S0==0] = 0
-
-    cv.imwrite(f"imgs/I_{index}.png", np.clip(I * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"imgs/S0_{index}.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"imgs/DOLP_{index}.png", (dolp * 255).astype(np.uint8))
-
-    angle_n = cv.applyColorMap(
-        ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
-    )
-    cv.imwrite(f"imgs/AOLP_{index}.png", angle_n)
-
-    cv.imwrite(f"imgs/N_{index}.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
-
-    S0_scaled = np.clip(S0 * 255.0, 0, 255).astype(np.uint8)
-    if scene_file_path.find("conductor"):
-        # For conductors:
-        mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_OTSU + cv.THRESH_BINARY_INV)[1]
-    else:
-        # For pplastics:
-        mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_BINARY)[1]
-
-    utils.plot_rgb_image(mask)
-
-    mask[mask == 255] = True
-    mask[mask == 0] = False
-
-    # savemat( "imgs/data.mat", { "S0": S0, "dolp": dolp, "aolp": aolp, "mask": binarized_logic,
-    #         "spec": spec_logic, }, )
-
-    # np.savez(f"imgs/stokes_{index}.npz", S0=S0, S1=S1, S2=S2, dolp=dolp, aolp=aolp)
 
 
 def main() -> None:
@@ -195,8 +163,8 @@ def main() -> None:
     sample_count = 16  # Higher means better quality - 16, 156, 256
     scene_files_path = "./scene_files/"
 
-    chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
-    chosen_camera = "persp"  # orth, persp
+    chosen_shape = "sphere"  # dragon, thai, armadillo, sphere, cube
+    chosen_camera = "orth"  # orth, persp
     chosen_material = "conductor"  # pplastic, conductor
     polarization_type = ""  # , ext_lens
 
