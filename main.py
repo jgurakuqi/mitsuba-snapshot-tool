@@ -4,15 +4,186 @@ from torch import cuda
 import cv2 as cv
 import utils
 import mitsuba as mi
+
+import pickle
+from glob import glob
+import cv2 as cv
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+import tqdm
 from scipy.io import savemat
 
 
+
+def I2channels( I ):
+    """Naively demosaic a PFA image to I0, I45, I90, I135. The output images are half the with and height of the input
+
+    Args:
+        I (numpy array): Input mosaiced image
+
+    Returns:
+        I0, I45, I90, I135: Demosaiced camera channels (half size)
+    """    
+    assert I.dtype == np.float32 or I.dtype == np.float64
+    assert I.ndim == 2
+
+
+    I90 = I[::2,::2]
+    I0 = I[1::2,1::2]
+    I45 = I[::2,1::2]
+    I135 = I[1::2,::2]
+
+    return I0, I45, I90, I135
+
+
+def channels2stokes( I0, I45, I90, I135 ):
+    """Computes Stokes vector from PFA camera channels
+
+    Args:
+        I0 ([type]): Channel I0
+        I45 ([type]): Channel I1
+        I90 ([type]): Channel I2
+        I135 ([type]): Channel I3
+
+    Returns:
+        S0,S1,S2: Stokes vector
+    """    
+    S0 = I0 + I90
+    S1 = I0 - I90
+    S2 = I45 - I135
+    return S0, S1, S2 
+
+
+def aolp( S0, S1, S2 ):
+    """ Computes Angle of Linear Polarization from Stokes parameters
+    """    
+    return 0.5 * np.arctan2(S2,S1)
+
+
+def dolp( S0, S1, S2 ):
+    """ Computes Degree of Linear Polarization from Stokes parameters
+    """    
+    return np.sqrt( S1**2 + S2**2 ) / S0
+
+
+
+def compute_priors(image, S0, S1, S2, aolp, dolp):
+    with open('deepSfP_priors_reverse.pkl', 'rb') as f:
+        interps = pickle.load(f)
+
+    # OUR_DATA_DIR = "./OUR_DATA_ARUCO/"
+    OUT_DIR = "./OUT_DATA_OUT/"
+
+    # Check if input folder exists.
+    # assert os.path.exists(OUR_DATA_DIR)
+
+    try:
+        # Create output folder if not existing.
+        if not os.path.exists(OUT_DIR):
+            os.makedirs(OUT_DIR)
+            print(f"Folder '{OUT_DIR}' created successfully.")
+        else:
+            print(f"Folder '{OUT_DIR}' already exists.")
+    except OSError as e:
+        print(f"Error creating folder: {e}")
+
+    H = 1024
+    W = 1224
+
+    save_priors = True
+
+    image_files = sorted(glob(f"{OUR_DATA_DIR}/*.png"))
+
+    N = 1 #len(image_files) #300
+
+    # maxi = 20
+
+    for img_id, curr_img_file in enumerate(image_files[0:N]):
+        # if img_id == 20:
+        #     break
+
+        filename = os.path.basename(curr_img_file)
+        print(f"Processing {filename} ({img_id+1}/{N})")
+        mask_file = f"{curr_img_file}_mask.npy"
+
+        # load RT
+        pose_file = curr_img_file+"_pose.txt"
+        if os.path.isfile(pose_file):
+            RT = np.loadtxt(pose_file)
+            R = RT[:,:3]
+        else:
+            print(pose_file + "not found, skipping")
+            continue
+        
+        # load mask
+        if os.path.isfile(mask_file):
+            mask_img = np.load(mask_file).astype(bool)
+        else:
+            print("mask not found!")
+            continue
+        
+        # normals GT
+        normals_gt = np.zeros((H, W, 3))
+        normals_gt[mask_img,:] = R[:,2]
+        normals_gt[...,1] *= -1
+        normals_gt[...,2] *= -1
+        
+        # plt.figure()
+        # plt.imshow(normals_gt[...,0])
+        # plt.colorbar()
+        
+        # load image and demosaic
+        img = cv.imread(curr_img_file, cv.IMREAD_GRAYSCALE)
+        img = img.astype(float)/255
+        I0, I45, I90, I135 = I2channels( img )
+
+        # TODO: read stokes, aolp and dolp
+        S0, S1, S2 = channels2stokes( I0, I45, I90, I135 )
+        aolp_img = aolp(S0,S1,S2)
+        dolp_img = dolp(S0,S1,S2)
+        
+        W = S0.shape[1]
+        H = S0.shape[0]
+        
+        if save_priors:
+        
+            aolp_img_f = aolp_img.flatten()
+            dolp_img_f = dolp_img.flatten()
+            mask_img_f = mask_img.flatten()
+
+            curr_prior = np.zeros((H*W,9))
+
+            for i in range(9):
+                print("interp ", i)
+                curr_prior[mask_img_f,i] = interps[i](aolp_img_f[mask_img_f], dolp_img_f[mask_img_f])
+
+            curr_prior = np.reshape(curr_prior, (H, W, 9))
+
+            # plt.figure()
+            # plt.imshow(curr_prior[...,0])
+            # plt.colorbar()
+            
+            mat_d = {}
+            mat_d["normals_prior"] = curr_prior
+            mat_d["mask"] = mask_img.astype(int)
+            mat_d["normals_gt"] = normals_gt
+            mat_d["images"] = np.stack([I0, I45, I90, I135], axis=2)
+
+            print("saving priors in .mat")
+            savemat(f"{OUT_DIR}/{filename}_withpriors.mat", mat_d)
+        
+    print("done")
+
+
+
+
 def write_output_data(
-    scene_file_path: str,
     I: np.ndarray,
     S0: np.ndarray,
     S1: np.ndarray,
     S2: np.ndarray,
+    # S3,
     normals: np.ndarray,
     positions: np.ndarray,
     index: int,
@@ -22,7 +193,6 @@ def write_output_data(
     as the Degree and Angle of linear polarization, normals and other data.
 
     Args:
-        scene_file_path (str): Path to the scene file to render.
         I (np.ndarray): Intensities.
         S0 (np.ndarray): Stoke 0
         S1 (np.ndarray): Stoke 1
@@ -35,6 +205,8 @@ def write_output_data(
     # return
 
     normals = normals.astype(np.double)
+    print(f"[Normals shape]: {normals.shape}")
+    print(f"[Normal pos 0,0]: {normals[0,0]}")
     positions = positions.astype(np.double)
 
     # ! Added to prevent Zero-Divisions in Dolp computation.
@@ -54,20 +226,20 @@ def write_output_data(
     cv.imwrite(f"imgs/AOLP_{index}.png", angle_n)
     cv.imwrite(f"imgs/N_{index}.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
 
-    # S0_scaled = np.clip(dolp * 255.0, 0, 255).astype(np.uint8)
-    # if scene_file_path.find("conductor"):
-    #     # For conductors:
-    #     mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_OTSU + cv.THRESH_BINARY_INV)[1]
-    # else:
-    #     # For pplastics:
-    #     mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_BINARY)[1]
+    # mask = dolp.copy()
+    # mask[mask > 0.0] = 255.0
+    # utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
 
-    mask = dolp.copy()
-    mask[mask > 0.0] = 255.0
+    mask = normals.copy()
+    mask[mask > 0.] = 255.
 
     utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
 
     mask = mask.astype(bool)
+
+    # total_polarized_intensity = np.sqrt(S1^2 + S2^2 + S3^2)
+
+    # unpolarized_intensity = S0 - total_polarized_intensity
 
     savemat(
         "imgs/data.mat",
@@ -134,6 +306,7 @@ def capture_scene(
                 "S0": mi.Bitmap.PixelFormat.Y,
                 "S1": mi.Bitmap.PixelFormat.Y,
                 "S2": mi.Bitmap.PixelFormat.Y,
+                # "S3": mi.Bitmap.PixelFormat.Y,
                 "nn": mi.Bitmap.PixelFormat.XYZ,
                 "pos": mi.Bitmap.PixelFormat.XYZ,
             },
@@ -141,11 +314,12 @@ def capture_scene(
 
         # Produce the output data based on the extracted layers.
         write_output_data(
-            scene_file_path=scene_file_path,
+            # scene_file_path=scene_file_path,
             I=layers_dict["<root>"],
             S0=layers_dict["S0"],
             S1=layers_dict["S1"],
             S2=layers_dict["S2"],
+            # S3=layers_dict["S3"],
             normals=layers_dict["nn"],
             positions=layers_dict["pos"],
             index=index,
@@ -163,7 +337,7 @@ def main() -> None:
     sample_count = 16  # Higher means better quality - 16, 156, 256
     scene_files_path = "./scene_files/"
 
-    chosen_shape = "sphere"  # dragon, thai, armadillo, sphere, cube
+    chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
     chosen_camera = "orth"  # orth, persp
     chosen_material = "conductor"  # pplastic, conductor
     polarization_type = ""  # , ext_lens
