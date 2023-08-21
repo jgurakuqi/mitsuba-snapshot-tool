@@ -244,7 +244,7 @@ def write_output_data(
     savemat(
         "imgs/data.mat",
         {
-            "images": S0,
+            "images": unpolarized_intensity,
             "dolp": dolp,
             "aolp": aolp,
             "mask": mask,
