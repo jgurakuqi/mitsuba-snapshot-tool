@@ -91,8 +91,6 @@ def compute_priors(image, S0, S1, S2, aolp, dolp):
     H = 1024
     W = 1224
 
-    save_priors = True
-
     image_files = sorted(glob(f"{OUR_DATA_DIR}/*.png"))
 
     N = 1 #len(image_files) #300
@@ -103,77 +101,75 @@ def compute_priors(image, S0, S1, S2, aolp, dolp):
         # if img_id == 20:
         #     break
 
-        filename = os.path.basename(curr_img_file)
-        print(f"Processing {filename} ({img_id+1}/{N})")
-        mask_file = f"{curr_img_file}_mask.npy"
+    filename = os.path.basename(curr_img_file)
+    print(f"Processing {filename} ({img_id+1}/{N})")
+    mask_file = f"{curr_img_file}_mask.npy"
 
-        # load RT
-        pose_file = curr_img_file+"_pose.txt"
-        if os.path.isfile(pose_file):
-            RT = np.loadtxt(pose_file)
-            R = RT[:,:3]
-        else:
-            print(pose_file + "not found, skipping")
-            continue
-        
-        # load mask
-        if os.path.isfile(mask_file):
-            mask_img = np.load(mask_file).astype(bool)
-        else:
-            print("mask not found!")
-            continue
-        
-        # normals GT
-        normals_gt = np.zeros((H, W, 3))
-        normals_gt[mask_img,:] = R[:,2]
-        normals_gt[...,1] *= -1
-        normals_gt[...,2] *= -1
-        
-        # plt.figure()
-        # plt.imshow(normals_gt[...,0])
-        # plt.colorbar()
-        
-        # load image and demosaic
-        img = cv.imread(curr_img_file, cv.IMREAD_GRAYSCALE)
-        img = img.astype(float)/255
-        I0, I45, I90, I135 = I2channels( img )
+    # load RT
+    pose_file = curr_img_file+"_pose.txt"
+    if os.path.isfile(pose_file):
+        RT = np.loadtxt(pose_file)
+        R = RT[:,:3]
+    else:
+        print(pose_file + "not found, skipping")
+        continue
+    
+    # load mask
+    if os.path.isfile(mask_file):
+        mask_img = np.load(mask_file).astype(bool)
+    else:
+        print("mask not found!")
+        continue
+    
+    # normals GT
+    normals_gt = np.zeros((H, W, 3))
+    normals_gt[mask_img,:] = R[:,2]
+    normals_gt[...,1] *= -1
+    normals_gt[...,2] *= -1
+    
+    # plt.figure()
+    # plt.imshow(normals_gt[...,0])
+    # plt.colorbar()
+    
+    # load image and demosaic
+    img = cv.imread(curr_img_file, cv.IMREAD_GRAYSCALE)
+    img = img.astype(float)/255
+    I0, I45, I90, I135 = I2channels( img )
 
-        # TODO: read stokes, aolp and dolp
-        S0, S1, S2 = channels2stokes( I0, I45, I90, I135 )
-        aolp_img = aolp(S0,S1,S2)
-        dolp_img = dolp(S0,S1,S2)
-        
-        W = S0.shape[1]
-        H = S0.shape[0]
-        
-        if save_priors:
-        
-            aolp_img_f = aolp_img.flatten()
-            dolp_img_f = dolp_img.flatten()
-            mask_img_f = mask_img.flatten()
+    # TODO: read stokes, aolp and dolp
+    S0, S1, S2 = channels2stokes( I0, I45, I90, I135 )
+    aolp_img = aolp(S0,S1,S2)
+    dolp_img = dolp(S0,S1,S2)
+    
+    W = S0.shape[1]
+    H = S0.shape[0]
+    
+    
+    aolp_img_f = aolp_img.flatten()
+    dolp_img_f = dolp_img.flatten()
+    mask_img_f = mask_img.flatten()
 
-            curr_prior = np.zeros((H*W,9))
+    curr_prior = np.zeros((H*W,9))
 
-            for i in range(9):
-                print("interp ", i)
-                curr_prior[mask_img_f,i] = interps[i](aolp_img_f[mask_img_f], dolp_img_f[mask_img_f])
+    for i in range(9):
+        print("interp ", i)
+        curr_prior[mask_img_f,i] = interps[i](aolp_img_f[mask_img_f], dolp_img_f[mask_img_f])
 
-            curr_prior = np.reshape(curr_prior, (H, W, 9))
+    curr_prior = np.reshape(curr_prior, (H, W, 9))
 
-            # plt.figure()
-            # plt.imshow(curr_prior[...,0])
-            # plt.colorbar()
-            
-            mat_d = {}
-            mat_d["normals_prior"] = curr_prior
-            mat_d["mask"] = mask_img.astype(int)
-            mat_d["normals_gt"] = normals_gt
-            mat_d["images"] = np.stack([I0, I45, I90, I135], axis=2)
+    # plt.figure()
+    # plt.imshow(curr_prior[...,0])
+    # plt.colorbar()
+    
+    mat_d = {}
+    mat_d["normals_prior"] = curr_prior
+    mat_d["mask"] = mask_img.astype(int)
+    mat_d["normals_gt"] = normals_gt
+    mat_d["images"] = np.stack([I0, I45, I90, I135], axis=2)
 
-            print("saving priors in .mat")
-            savemat(f"{OUT_DIR}/{filename}_withpriors.mat", mat_d)
-        
-    print("done")
+    print("saving priors in .mat")
+    savemat(f"{OUT_DIR}/{filename}_withpriors.mat", mat_d)
+    
 
 
 
