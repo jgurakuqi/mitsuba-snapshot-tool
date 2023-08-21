@@ -8,11 +8,11 @@ from scipy.io import savemat
 
 
 def write_output_data(
-    scene_file_path: str,
     I: np.ndarray,
     S0: np.ndarray,
     S1: np.ndarray,
     S2: np.ndarray,
+    S3,
     normals: np.ndarray,
     positions: np.ndarray,
     index: int,
@@ -22,7 +22,6 @@ def write_output_data(
     as the Degree and Angle of linear polarization, normals and other data.
 
     Args:
-        scene_file_path (str): Path to the scene file to render.
         I (np.ndarray): Intensities.
         S0 (np.ndarray): Stoke 0
         S1 (np.ndarray): Stoke 1
@@ -54,13 +53,6 @@ def write_output_data(
     cv.imwrite(f"imgs/AOLP_{index}.png", angle_n)
     cv.imwrite(f"imgs/N_{index}.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
 
-    # S0_scaled = np.clip(dolp * 255.0, 0, 255).astype(np.uint8)
-    # if scene_file_path.find("conductor"):
-    #     # For conductors:
-    #     mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_OTSU + cv.THRESH_BINARY_INV)[1]
-    # else:
-    #     # For pplastics:
-    #     mask = cv.threshold(S0_scaled, 1, 255, cv.THRESH_BINARY)[1]
 
     mask = dolp.copy()
     mask[mask > 0.0] = 255.0
@@ -69,10 +61,14 @@ def write_output_data(
 
     mask = mask.astype(bool)
 
+    total_polarized_intensity = np.sqrt(S1^2 + S2^2 + S3^2)
+
+    unpolarized_intensity = S0 - total_polarized_intensity
+
     savemat(
         "imgs/data.mat",
         {
-            "images": S0,
+            "images": unpolarized_intensity,
             "dolp": dolp,
             "aolp": aolp,
             "mask": mask,
@@ -134,6 +130,7 @@ def capture_scene(
                 "S0": mi.Bitmap.PixelFormat.Y,
                 "S1": mi.Bitmap.PixelFormat.Y,
                 "S2": mi.Bitmap.PixelFormat.Y,
+                "S3": mi.Bitmap.PixelFormat.Y,
                 "nn": mi.Bitmap.PixelFormat.XYZ,
                 "pos": mi.Bitmap.PixelFormat.XYZ,
             },
@@ -146,6 +143,7 @@ def capture_scene(
             S0=layers_dict["S0"],
             S1=layers_dict["S1"],
             S2=layers_dict["S2"],
+            S3=layers_dict["S3"],
             normals=layers_dict["nn"],
             positions=layers_dict["pos"],
             index=index,
