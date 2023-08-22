@@ -37,10 +37,9 @@ def create_directory(directory: str):
     """
     try:
         if not os.path.exists(directory):
+            print(f"Folder '{directory}' does not exists. Starting creation...")
             os.makedirs(directory)
             print(f"Folder '{directory}' created successfully.")
-        else:
-            print(f"Folder '{directory}' already exists.")
     except OSError as e:
         print(f"Error creating folder: {e}")
 
@@ -53,6 +52,7 @@ def compute_priors(
     normals: np.ndarray,
     index: int,
     output_directory: str,
+    object_name: str,
 ) -> None:
     """
     Computes the priors required by Deep Shape's Neural network.
@@ -85,6 +85,11 @@ def compute_priors(
         mask.flatten(),
     )
 
+    masked_flattened_aolp, masked_flattened_dolp = (
+        flattened_aolp[flattened_mask],
+        flattened_dolp[flattened_mask],
+    )
+
     # ----- Compute priors -----
 
     curr_prior = np.zeros((H * W, 9))
@@ -92,7 +97,7 @@ def compute_priors(
     def interpolate_thread(i):
         print(f"Interpolating {i} ...")
         curr_prior[flattened_mask, i] = interps[i](
-            flattened_aolp[flattened_mask], flattened_dolp[flattened_mask]
+            masked_flattened_aolp, masked_flattened_dolp
         )
 
     threads = [threading.Thread(target=interpolate_thread, args=(i,)) for i in range(9)]
@@ -108,7 +113,7 @@ def compute_priors(
     print("saving priors in .mat")
 
     savemat(
-        f"{output_directory}{index}_data.mat",
+        f"{output_directory}{object_name}_{index}_with_priors.mat",
         {
             "normals_prior": curr_prior,
             "mask": mask.astype(int),
@@ -143,59 +148,59 @@ def write_output_data(
         positions (np.ndarray): _description_
         index (int): index of the current snapshot angle, used to define the path.
     """
-    utils.plot_rgb_image(I)
+    # utils.plot_rgb_image(I)
+
+    # ----- Extract and convert data. -----
 
     normals = normals.astype(np.double)
-    # print(f"[Normals shape]: {normals.shape}")
-    # print(f"[Normal pos 0,0]: {normals[0,0]}")
     positions = positions.astype(np.double)
-
-    # ! Added to prevent Zero-Divisions in Dolp computation.
-    S0[S0 == 0] = np.finfo(float).eps
-
+    S0[S0 == 0] = np.finfo(float).eps  # Prevent Zero-Divisions in Dolp computation.
     aolp = 0.5 * np.arctan2(S2, S1)
     dolp = np.sqrt(S1**2 + S2**2) / S0
-    # dolp[S0==0] = 0
-
     angle_n = cv.applyColorMap(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
     )
 
-    prefix_path = f"{output_directory}{index}_{object_name}"
+    # ----- Write computed data as files. -----
+
+    prefix_path = f"{output_directory}{object_name}_{index}"
     cv.imwrite(f"{prefix_path}_I.png", np.clip(I * 255, 0, 255).astype(np.uint8))
     cv.imwrite(f"{prefix_path}_S0.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
     cv.imwrite(f"{prefix_path}_DOLP.png", (dolp * 255).astype(np.uint8))
-    cv.imwrite(f"{prefix_path}_AOLP.png", angle_n)
+    cv.imwrite(f"{prefix_path}_AOLP_COLOURED.png", angle_n)
     cv.imwrite(f"{prefix_path}_N.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
 
-    # mask = dolp.copy()
+    # ----- Compute binary mask. -----
+
+    # mask = normals.copy()
     # mask[mask > 0.0] = 255.0
+    mask = (normals[..., 0] > 0).astype(np.uint8)
+
     # utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
 
-    mask = normals.copy()
-    mask[mask > 0.0] = 255.0
-
-    utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
-
-    mask = mask.astype(bool)
+    # mask = mask.astype(bool)
 
     comparator_folder_path = f"{output_directory}{comparator_folder_name}"
 
     # Create comparator output folder if not existing.
     create_directory(comparator_folder_path)
 
+    # ----- Store .mat data for William's Matlab comparator. -----
+
     savemat(
-        f"{comparator_folder_path}{index}_{object_name}_data.mat",
+        f"{comparator_folder_path}{object_name}_{index}.mat",
         {
             "images": S0,
             "dolp": dolp,
             "aolp": aolp,
-            "mask": mask,
-            "spec": mask,
+            "mask": mask.astype(bool),
+            "spec": mask.astype(bool),
         },
     )
 
-    compute_priors(S0, aolp, dolp, mask, normals, index, output_directory)
+    # ----- Compute input (with priors) for Deep Shape's Neural network. -----
+
+    # compute_priors(S0, aolp, dolp, mask, normals, index, output_directory, object_name)
 
 
 def capture_scene(
@@ -230,7 +235,7 @@ def capture_scene(
             - positions: Surface positions
     """
     try:
-        # Capture the scene.
+        # ----- Load the scene ----.
         scene = mi.load_file(
             scene_file_path,
             camera_width=camera_width,
@@ -242,11 +247,11 @@ def capture_scene(
 
         sensor = scene.sensors()[0]
         scene.integrator().render(scene, sensor)
-        film = sensor.film()
 
-        # Extract the film's layers (i.e., stokes, normals, etc...).
+        # ----- Extract film's layers (i.e., stokes, normals, etc...) -----
+
         layers_dict = utils.extract_chosen_layers_as_numpy(
-            film,
+            sensor.film(),
             {
                 "<root>": mi.Bitmap.PixelFormat.RGB,
                 "S0": mi.Bitmap.PixelFormat.Y,
@@ -257,7 +262,8 @@ def capture_scene(
             },
         )
 
-        # Produce the output data based on the extracted layers.
+        # ----- Produce the output data based on the extracted layers. -----
+
         write_output_data(
             object_name=object_name,
             I=layers_dict["<root>"],
@@ -275,21 +281,15 @@ def capture_scene(
 
 def main() -> None:
     debug_stop_iteration = 1
-    # delete_scene_file = False
     camera_width = 1920
     camera_height = 1450
-    sample_count = 16  # Higher means better quality - 16, 156, 256
+    sample_count = 56  # Higher means better quality - 16, 156, 256
     scene_files_path = "./scene_files/"
 
-    chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
-    chosen_camera = "orth"  # orth, persp
-    chosen_material = "conductor"  # pplastic, conductor
-    # polarization_type = ""  # , ext_lens
+    chosen_shape = "armadillo"  # dragon, thai, armadillo, sphere, cube
+    chosen_camera = "persp"  # orth, persp
+    chosen_material = "pplastic"  # pplastic, conductor
 
-    # if polarization_type != "":
-    #     polarization_type = f"_{polarization_type}"
-
-    # scene_path = f"{scene_files_path}{chosen_shape}/{chosen_camera}_{chosen_material}{polarization_type}.xml"
     scene_path = (
         f"{scene_files_path}{chosen_shape}/{chosen_camera}_{chosen_material}.xml"
     )
@@ -298,18 +298,18 @@ def main() -> None:
     total = total if total < debug_stop_iteration else debug_stop_iteration
     print("Start processing:\n")
 
-    # cuda.init()
+    # ? cuda.init()
 
     # Start capturing the scene from different angles:
     for angle_index, current_angle in enumerate(range(0, 360, 60)):
-        # cuda.empty_cache()
+        # ? cuda.empty_cache()
         if debug_stop_iteration == angle_index:
             # In case of DEBUG-testing, stops the execution at the required iteration.
             print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
             return
         print(f"Starting with angle {angle_index + 1}/{total}...")
         capture_scene(
-            object_name=f"{chosen_shape}_{chosen_camera}_{chosen_material}.xml",
+            object_name=f"{chosen_shape}_{chosen_camera}_{chosen_material}",
             scene_file_path=scene_path,
             index=angle_index,
             camera_width=camera_width,
