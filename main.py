@@ -4,185 +4,131 @@ from torch import cuda
 import cv2 as cv
 import utils
 import mitsuba as mi
-
 import pickle
-from glob import glob
-import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
+
+# import matplotlib.pyplot as plt
 import os
-import tqdm
 from scipy.io import savemat
 
+import threading
 
 
-def I2channels( I ):
-    """Naively demosaic a PFA image to I0, I45, I90, I135. The output images are half the with and height of the input
-
-    Args:
-        I (numpy array): Input mosaiced image
-
-    Returns:
-        I0, I45, I90, I135: Demosaiced camera channels (half size)
-    """    
-    assert I.dtype == np.float32 or I.dtype == np.float64
-    assert I.ndim == 2
-
-
-    I90 = I[::2,::2]
-    I0 = I[1::2,1::2]
-    I45 = I[::2,1::2]
-    I135 = I[1::2,::2]
-
-    return I0, I45, I90, I135
-
-
-def channels2stokes( I0, I45, I90, I135 ):
-    """Computes Stokes vector from PFA camera channels
+def load_interpolations(file_path: str):
+    """
+    Load the interpolators.
 
     Args:
-        I0 ([type]): Channel I0
-        I45 ([type]): Channel I1
-        I90 ([type]): Channel I2
-        I135 ([type]): Channel I3
+        file_path (str): path to the interpolators.
 
     Returns:
-        S0,S1,S2: Stokes vector
-    """    
-    S0 = I0 + I90
-    S1 = I0 - I90
-    S2 = I45 - I135
-    return S0, S1, S2 
+        _type_: _description_
+    """
+    with open(file_path, "rb") as f:
+        return pickle.load(f)
 
 
-def aolp( S0, S1, S2 ):
-    """ Computes Angle of Linear Polarization from Stokes parameters
-    """    
-    return 0.5 * np.arctan2(S2,S1)
+def create_directory(directory: str):
+    """
+    Create the folder in the given path if it does not exist.
 
-
-def dolp( S0, S1, S2 ):
-    """ Computes Degree of Linear Polarization from Stokes parameters
-    """    
-    return np.sqrt( S1**2 + S2**2 ) / S0
-
-
-
-def compute_priors(image, S0, S1, S2, aolp, dolp):
-    with open('deepSfP_priors_reverse.pkl', 'rb') as f:
-        interps = pickle.load(f)
-
-    # OUR_DATA_DIR = "./OUR_DATA_ARUCO/"
-    OUT_DIR = "./OUT_DATA_OUT/"
-
-    # Check if input folder exists.
-    # assert os.path.exists(OUR_DATA_DIR)
-
+    Args:
+        directory (str): path to check.
+    """
     try:
-        # Create output folder if not existing.
-        if not os.path.exists(OUT_DIR):
-            os.makedirs(OUT_DIR)
-            print(f"Folder '{OUT_DIR}' created successfully.")
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Folder '{directory}' created successfully.")
         else:
-            print(f"Folder '{OUT_DIR}' already exists.")
+            print(f"Folder '{directory}' already exists.")
     except OSError as e:
         print(f"Error creating folder: {e}")
 
-    H = 1024
-    W = 1224
 
-    image_files = sorted(glob(f"{OUR_DATA_DIR}/*.png"))
+def compute_priors(
+    S0: np.ndarray,
+    aolp: np.ndarray,
+    dolp: np.ndarray,
+    mask: np.ndarray,
+    normals: np.ndarray,
+    index: int,
+    output_directory: str,
+) -> None:
+    """
+    Computes the priors required by Deep Shape's Neural network.
 
-    N = 1 #len(image_files) #300
+    Args:
+        S0 (np.ndarray): stoke 0, i.e., total intensity.
+        aolp (np.ndarray): Angle of linear polarization.
+        dolp (np.ndarray): Degree of linear polarization.
+        mask (np.ndarray): Binary mask for targeting only the prominent object.
+        normals (np.ndarray): Surface normals of said object.
+        index (int): index of current object's frame.
+        output_directory (str): directory path for storing outputs.
+    """
+    interps = load_interpolations("deepSfP_priors_reverse.pkl")
 
-    # maxi = 20
+    output_directory += "data_with_priors/"
 
-    for img_id, curr_img_file in enumerate(image_files[0:N]):
-        # if img_id == 20:
-        #     break
+    # Create output folder if not existing.
+    create_directory(output_directory)
 
-    filename = os.path.basename(curr_img_file)
-    print(f"Processing {filename} ({img_id+1}/{N})")
-    mask_file = f"{curr_img_file}_mask.npy"
+    # ground truth normals.
+    normals[:, 1] *= -1
+    normals[:, 2] *= -1
 
-    # load RT
-    pose_file = curr_img_file+"_pose.txt"
-    if os.path.isfile(pose_file):
-        RT = np.loadtxt(pose_file)
-        R = RT[:,:3]
-    else:
-        print(pose_file + "not found, skipping")
-        continue
-    
-    # load mask
-    if os.path.isfile(mask_file):
-        mask_img = np.load(mask_file).astype(bool)
-    else:
-        print("mask not found!")
-        continue
-    
-    # normals GT
-    normals_gt = np.zeros((H, W, 3))
-    normals_gt[mask_img,:] = R[:,2]
-    normals_gt[...,1] *= -1
-    normals_gt[...,2] *= -1
-    
-    # plt.figure()
-    # plt.imshow(normals_gt[...,0])
-    # plt.colorbar()
-    
-    # load image and demosaic
-    img = cv.imread(curr_img_file, cv.IMREAD_GRAYSCALE)
-    img = img.astype(float)/255
-    I0, I45, I90, I135 = I2channels( img )
+    H, W = S0.shape[:2]
 
-    # TODO: read stokes, aolp and dolp
-    S0, S1, S2 = channels2stokes( I0, I45, I90, I135 )
-    aolp_img = aolp(S0,S1,S2)
-    dolp_img = dolp(S0,S1,S2)
-    
-    W = S0.shape[1]
-    H = S0.shape[0]
-    
-    
-    aolp_img_f = aolp_img.flatten()
-    dolp_img_f = dolp_img.flatten()
-    mask_img_f = mask_img.flatten()
+    flattened_aolp, flattened_dolp, flattened_mask = (
+        aolp.flatten(),
+        dolp.flatten(),
+        mask.flatten(),
+    )
 
-    curr_prior = np.zeros((H*W,9))
+    # ----- Compute priors -----
 
-    for i in range(9):
-        print("interp ", i)
-        curr_prior[mask_img_f,i] = interps[i](aolp_img_f[mask_img_f], dolp_img_f[mask_img_f])
+    curr_prior = np.zeros((H * W, 9))
+
+    def interpolate_thread(i):
+        print(f"Interpolating {i} ...")
+        curr_prior[flattened_mask, i] = interps[i](
+            flattened_aolp[flattened_mask], flattened_dolp[flattened_mask]
+        )
+
+    threads = [threading.Thread(target=interpolate_thread, args=(i,)) for i in range(9)]
+    for thread in threads:
+        thread.start()
+
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
 
     curr_prior = np.reshape(curr_prior, (H, W, 9))
 
-    # plt.figure()
-    # plt.imshow(curr_prior[...,0])
-    # plt.colorbar()
-    
-    mat_d = {}
-    mat_d["normals_prior"] = curr_prior
-    mat_d["mask"] = mask_img.astype(int)
-    mat_d["normals_gt"] = normals_gt
-    mat_d["images"] = np.stack([I0, I45, I90, I135], axis=2)
-
     print("saving priors in .mat")
-    savemat(f"{OUT_DIR}/{filename}_withpriors.mat", mat_d)
-    
 
-
+    savemat(
+        f"{output_directory}{index}_data.mat",
+        {
+            "normals_prior": curr_prior,
+            "mask": mask.astype(int),
+            "normals_gt": normals,
+            "images": S0,  # np.stack([I0, I45, I90, I135], axis=2)
+        },
+    )
 
 
 def write_output_data(
+    object_name: str,
     I: np.ndarray,
     S0: np.ndarray,
     S1: np.ndarray,
     S2: np.ndarray,
-    # S3,
     normals: np.ndarray,
     positions: np.ndarray,
     index: int,
+    output_directory: str = "imgs/",
+    comparator_folder_name: str = "for_comparator/",
 ) -> None:
     """
     Use the extracted layers from the rendered scene to compute and store information such
@@ -198,11 +144,10 @@ def write_output_data(
         index (int): index of the current snapshot angle, used to define the path.
     """
     utils.plot_rgb_image(I)
-    # return
 
     normals = normals.astype(np.double)
-    print(f"[Normals shape]: {normals.shape}")
-    print(f"[Normal pos 0,0]: {normals[0,0]}")
+    # print(f"[Normals shape]: {normals.shape}")
+    # print(f"[Normal pos 0,0]: {normals[0,0]}")
     positions = positions.astype(np.double)
 
     # ! Added to prevent Zero-Divisions in Dolp computation.
@@ -216,31 +161,33 @@ def write_output_data(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
     )
 
-    cv.imwrite(f"imgs/I_{index}.png", np.clip(I * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"imgs/S0_{index}.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"imgs/DOLP_{index}.png", (dolp * 255).astype(np.uint8))
-    cv.imwrite(f"imgs/AOLP_{index}.png", angle_n)
-    cv.imwrite(f"imgs/N_{index}.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
+    prefix_path = f"{output_directory}{index}_{object_name}"
+    cv.imwrite(f"{prefix_path}_I.png", np.clip(I * 255, 0, 255).astype(np.uint8))
+    cv.imwrite(f"{prefix_path}_S0.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
+    cv.imwrite(f"{prefix_path}_DOLP.png", (dolp * 255).astype(np.uint8))
+    cv.imwrite(f"{prefix_path}_AOLP.png", angle_n)
+    cv.imwrite(f"{prefix_path}_N.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
 
     # mask = dolp.copy()
     # mask[mask > 0.0] = 255.0
     # utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
 
     mask = normals.copy()
-    mask[mask > 0.] = 255.
+    mask[mask > 0.0] = 255.0
 
     utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
 
     mask = mask.astype(bool)
 
-    # total_polarized_intensity = np.sqrt(S1^2 + S2^2 + S3^2)
+    comparator_folder_path = f"{output_directory}{comparator_folder_name}"
 
-    # unpolarized_intensity = S0 - total_polarized_intensity
+    # Create comparator output folder if not existing.
+    create_directory(comparator_folder_path)
 
     savemat(
-        "imgs/data.mat",
+        f"{comparator_folder_path}{index}_{object_name}_data.mat",
         {
-            "images": unpolarized_intensity,
+            "images": S0,
             "dolp": dolp,
             "aolp": aolp,
             "mask": mask,
@@ -248,8 +195,11 @@ def write_output_data(
         },
     )
 
+    compute_priors(S0, aolp, dolp, mask, normals, index, output_directory)
+
 
 def capture_scene(
+    object_name: str,
     scene_file_path: str,
     index: int,
     camera_width: int = 1024,
@@ -302,7 +252,6 @@ def capture_scene(
                 "S0": mi.Bitmap.PixelFormat.Y,
                 "S1": mi.Bitmap.PixelFormat.Y,
                 "S2": mi.Bitmap.PixelFormat.Y,
-                # "S3": mi.Bitmap.PixelFormat.Y,
                 "nn": mi.Bitmap.PixelFormat.XYZ,
                 "pos": mi.Bitmap.PixelFormat.XYZ,
             },
@@ -310,12 +259,11 @@ def capture_scene(
 
         # Produce the output data based on the extracted layers.
         write_output_data(
-            # scene_file_path=scene_file_path,
+            object_name=object_name,
             I=layers_dict["<root>"],
             S0=layers_dict["S0"],
             S1=layers_dict["S1"],
             S2=layers_dict["S2"],
-            # S3=layers_dict["S3"],
             normals=layers_dict["nn"],
             positions=layers_dict["pos"],
             index=index,
@@ -336,12 +284,15 @@ def main() -> None:
     chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
     chosen_camera = "orth"  # orth, persp
     chosen_material = "conductor"  # pplastic, conductor
-    polarization_type = ""  # , ext_lens
+    # polarization_type = ""  # , ext_lens
 
-    if polarization_type != "":
-        polarization_type = f"_{polarization_type}"
+    # if polarization_type != "":
+    #     polarization_type = f"_{polarization_type}"
 
-    scene_path = f"{scene_files_path}{chosen_shape}/{chosen_camera}_{chosen_material}{polarization_type}.xml"
+    # scene_path = f"{scene_files_path}{chosen_shape}/{chosen_camera}_{chosen_material}{polarization_type}.xml"
+    scene_path = (
+        f"{scene_files_path}{chosen_shape}/{chosen_camera}_{chosen_material}.xml"
+    )
 
     total = len(range(0, 360, 60))
     total = total if total < debug_stop_iteration else debug_stop_iteration
@@ -351,13 +302,14 @@ def main() -> None:
 
     # Start capturing the scene from different angles:
     for angle_index, current_angle in enumerate(range(0, 360, 60)):
-        cuda.empty_cache()
+        # cuda.empty_cache()
         if debug_stop_iteration == angle_index:
             # In case of DEBUG-testing, stops the execution at the required iteration.
             print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
             return
         print(f"Starting with angle {angle_index + 1}/{total}...")
         capture_scene(
+            object_name=f"{chosen_shape}_{chosen_camera}_{chosen_material}.xml",
             scene_file_path=scene_path,
             index=angle_index,
             camera_width=camera_width,
