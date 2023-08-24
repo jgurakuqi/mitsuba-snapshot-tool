@@ -125,12 +125,13 @@ def compute_priors(
 
 def write_output_data(
     object_name: str,
-    I: np.ndarray,
+    # I: np.ndarray,
     S0: np.ndarray,
     S1: np.ndarray,
     S2: np.ndarray,
+    S3: np.ndarray,
     normals: np.ndarray,
-    positions: np.ndarray,
+    # positions: np.ndarray,
     index: int,
     output_directory: str = "imgs/",
     comparator_folder_name: str = "for_comparator/",
@@ -152,8 +153,17 @@ def write_output_data(
 
     # ----- Extract and convert data. -----
 
-    normals = normals.astype(np.double)
-    positions = positions.astype(np.double)
+    # ? -------- Data is already fetched in Float64 format.
+
+    # normals = normals.astype(np.double)
+    # positions = positions.astype(np.double)
+
+    # # ! Convert also stokes to double
+    # S0, S1, S2 = S0.astype(np.double), S1.astype(np.double), S2.astype(np.double)
+    # # ! --
+
+    # ? ---------
+
     S0[S0 == 0] = np.finfo(float).eps  # Prevent Zero-Divisions in Dolp computation.
     aolp = 0.5 * np.arctan2(S2, S1)
     dolp = np.sqrt(S1**2 + S2**2) / S0
@@ -161,20 +171,34 @@ def write_output_data(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
     )
 
+    # ! Generalize this to compute the light direction for comparator.
+    # import numpy as np
+
+    # armadillo_position = np.array([0, -0.08, 0])  # Adjust the position if needed based on the translation
+    # light_position = np.array([90.0, 90.0, 75.0])
+
+    # light_direction = light_position - armadillo_position
+    # light_direction = light_direction / np.linalg.norm(light_direction)  # Normalize the direction vector
+
+    # print("Estimated light direction:", light_direction)
+    # ! ----
+
     # ----- Write computed data as files. -----
 
-    prefix_path = f"{output_directory}{object_name}_{index}"
-    cv.imwrite(f"{prefix_path}_I.png", np.clip(I * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"{prefix_path}_S0.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"{prefix_path}_DOLP.png", (dolp * 255).astype(np.uint8))
-    cv.imwrite(f"{prefix_path}_AOLP_COLOURED.png", angle_n)
-    cv.imwrite(f"{prefix_path}_N.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
+    imgs_path = f"{output_directory}{object_name}_{index}_"
+    # cv.imwrite(f"{imgs_path}I.png", np.clip(I * 255.0, 0, 255).astype(np.uint8))
+    cv.imwrite(f"{imgs_path}S0.png", np.clip(S0 * 255.0, 0, 255).astype(np.uint8))
+    cv.imwrite(f"{imgs_path}DOLP.png", (dolp * 255.0).astype(np.uint8))
+    cv.imwrite(f"{imgs_path}AOLP_COLOURED.png", angle_n)
+    cv.imwrite(
+        f"{imgs_path}NORMALS.png", ((normals + 1.0) * 0.5 * 255.0).astype(np.uint8)
+    )
 
     # ----- Compute binary mask. -----
 
     # mask = normals.copy()
     # mask[mask > 0.0] = 255.0
-    mask = (normals[..., 0] > 0).astype(np.uint8)
+    mask = (normals[..., 0] > 0.0).astype(np.uint8)
 
     # utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
 
@@ -191,6 +215,7 @@ def write_output_data(
         f"{comparator_folder_path}{object_name}_{index}.mat",
         {
             "images": S0,
+            "unpol": S0 - np.sqrt(S1**2 + S2**2 + S3**2),
             "dolp": dolp,
             "aolp": aolp,
             "mask": mask.astype(bool),
@@ -253,10 +278,11 @@ def capture_scene(
         layers_dict = utils.extract_chosen_layers_as_numpy(
             sensor.film(),
             {
-                "<root>": mi.Bitmap.PixelFormat.RGB,
+                # "<root>": mi.Bitmap.PixelFormat.RGB,
                 "S0": mi.Bitmap.PixelFormat.Y,
                 "S1": mi.Bitmap.PixelFormat.Y,
                 "S2": mi.Bitmap.PixelFormat.Y,
+                "S3": mi.Bitmap.PixelFormat.Y,
                 "nn": mi.Bitmap.PixelFormat.XYZ,
                 "pos": mi.Bitmap.PixelFormat.XYZ,
             },
@@ -266,12 +292,13 @@ def capture_scene(
 
         write_output_data(
             object_name=object_name,
-            I=layers_dict["<root>"],
+            # I=layers_dict["<root>"],
             S0=layers_dict["S0"],
             S1=layers_dict["S1"],
             S2=layers_dict["S2"],
+            S3=layers_dict["S3"],
             normals=layers_dict["nn"],
-            positions=layers_dict["pos"],
+            # positions=layers_dict["pos"],
             index=index,
         )
     except Exception as e:
