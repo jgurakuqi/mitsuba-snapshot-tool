@@ -52,7 +52,7 @@ def compute_priors(
     normals: np.ndarray,
     index: int,
     output_directory: str,
-    object_name: str,
+    output_name: str,
 ) -> None:
     """
     Computes the priors required by Deep Shape's Neural network.
@@ -68,7 +68,7 @@ def compute_priors(
     """
     interps = load_interpolations("deepSfP_priors_reverse.pkl")
 
-    output_directory += "data_with_priors/"
+    output_directory += "for_deep_shape/"
 
     # Create output folder if not existing.
     create_directory(output_directory)
@@ -113,7 +113,7 @@ def compute_priors(
     print("saving priors in .mat")
 
     savemat(
-        f"{output_directory}{object_name}_{index}_with_priors.mat",
+        f"{output_directory}{output_name}_{index}_with_priors.mat",
         {
             "normals_prior": curr_prior,
             "mask": mask.astype(int),
@@ -124,15 +124,17 @@ def compute_priors(
 
 
 def write_output_data(
-    object_name: str,
-    I: np.ndarray,
+    output_name: str,
+    # I: np.ndarray,
     S0: np.ndarray,
     S1: np.ndarray,
     S2: np.ndarray,
+    S3: np.ndarray,
     normals: np.ndarray,
-    positions: np.ndarray,
+    specular_amount: float,
+    # positions: np.ndarray,
     index: int,
-    output_directory: str = "imgs/",
+    output_directory: str = "outputs/",
     comparator_folder_name: str = "for_comparator/",
 ) -> None:
     """
@@ -148,12 +150,6 @@ def write_output_data(
         positions (np.ndarray): _description_
         index (int): index of the current snapshot angle, used to define the path.
     """
-    # utils.plot_rgb_image(I)
-
-    # ----- Extract and convert data. -----
-
-    normals = normals.astype(np.double)
-    positions = positions.astype(np.double)
     S0[S0 == 0] = np.finfo(float).eps  # Prevent Zero-Divisions in Dolp computation.
     aolp = 0.5 * np.arctan2(S2, S1)
     dolp = np.sqrt(S1**2 + S2**2) / S0
@@ -163,22 +159,22 @@ def write_output_data(
 
     # ----- Write computed data as files. -----
 
-    prefix_path = f"{output_directory}{object_name}_{index}"
-    cv.imwrite(f"{prefix_path}_I.png", np.clip(I * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"{prefix_path}_S0.png", np.clip(S0 * 255, 0, 255).astype(np.uint8))
-    cv.imwrite(f"{prefix_path}_DOLP.png", (dolp * 255).astype(np.uint8))
-    cv.imwrite(f"{prefix_path}_AOLP_COLOURED.png", angle_n)
-    cv.imwrite(f"{prefix_path}_N.png", ((normals + 1.0) * 0.5 * 255).astype(np.uint8))
+    imgs_path = f"{output_directory}{output_name}_{index}_"
+    # cv.imwrite(f"{imgs_path}I.png", np.clip(I * 255.0, 0, 255).astype(np.uint8))
+    cv.imwrite(f"{imgs_path}S0.png", np.clip(S0 * 255.0, 0, 255).astype(np.uint8))
+    cv.imwrite(f"{imgs_path}DOLP.png", (dolp * 255.0).astype(np.uint8))
+    cv.imwrite(f"{imgs_path}AOLP_COLOURED.png", angle_n)
+    cv.imwrite(
+        f"{imgs_path}NORMALS.png", ((normals + 1.0) * 0.5 * 255.0).astype(np.uint8)
+    )
 
     # ----- Compute binary mask. -----
 
     # mask = normals.copy()
     # mask[mask > 0.0] = 255.0
-    mask = (normals[..., 0] > 0).astype(np.uint8)
+    mask = (np.sum(np.square(normals), axis=-1) > 0.0).astype(np.uint8)
 
     # utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
-
-    # mask = mask.astype(bool)
 
     comparator_folder_path = f"{output_directory}{comparator_folder_name}"
 
@@ -187,31 +183,36 @@ def write_output_data(
 
     # ----- Store .mat data for William's Matlab comparator. -----
 
+    spec_mask = mask.astype(bool) if specular_amount != 0.0 else (mask * 0).astype(bool)
+
+    print(f"Spec values: {set(spec_mask.flatten())}")
+
     savemat(
-        f"{comparator_folder_path}{object_name}_{index}.mat",
+        f"{comparator_folder_path}{output_name}_{index}.mat",
         {
             "images": S0,
+            "unpol": S0 - np.sqrt(S1**2 + S2**2 + S3**2),
             "dolp": dolp,
             "aolp": aolp,
             "mask": mask.astype(bool),
-            "spec": mask.astype(bool),
+            "spec": spec_mask,
         },
     )
 
     # ----- Compute input (with priors) for Deep Shape's Neural network. -----
 
-    # compute_priors(S0, aolp, dolp, mask, normals, index, output_directory, object_name)
+    # compute_priors(S0, aolp, dolp, mask, normals, index, output_directory, output_name)
 
 
 def capture_scene(
-    object_name: str,
+    output_name: str,
     scene_file_path: str,
     index: int,
-    camera_width: int = 1024,
-    camera_height: int = 720,
+    chosen_reflectance: str,
+    camera_width: int,
+    camera_height: int,
     angle: float = 0.0,
     sample_count: int = 16,
-    tilt: float = 0.0,
 ) -> tuple[
     np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
 ]:
@@ -234,6 +235,14 @@ def capture_scene(
             - normals: Surface normals
             - positions: Surface positions
     """
+    reflectance_types = {
+        "specular": {"specular": 1.0, "diffuse": 0.0},
+        "diffuse": {"diffuse": 1.0, "specular": 0.0},
+        "mixed": {"diffuse": 0.5, "specular": 0.5},
+        "realistic": {"diffuse": 0.2, "specular": 1.0},
+    }
+    specular_amount = reflectance_types[chosen_reflectance]["specular"]
+    diffuse_amount = reflectance_types[chosen_reflectance]["diffuse"]
     try:
         # ----- Load the scene ----.
         scene = mi.load_file(
@@ -242,7 +251,8 @@ def capture_scene(
             camera_height=camera_height,
             angle=angle,
             sample_count=sample_count,
-            tilt=tilt,
+            diffuse=diffuse_amount,
+            specular=specular_amount,
         )
 
         sensor = scene.sensors()[0]
@@ -253,10 +263,11 @@ def capture_scene(
         layers_dict = utils.extract_chosen_layers_as_numpy(
             sensor.film(),
             {
-                "<root>": mi.Bitmap.PixelFormat.RGB,
+                # "<root>": mi.Bitmap.PixelFormat.RGB,
                 "S0": mi.Bitmap.PixelFormat.Y,
                 "S1": mi.Bitmap.PixelFormat.Y,
                 "S2": mi.Bitmap.PixelFormat.Y,
+                "S3": mi.Bitmap.PixelFormat.Y,
                 "nn": mi.Bitmap.PixelFormat.XYZ,
                 "pos": mi.Bitmap.PixelFormat.XYZ,
             },
@@ -265,14 +276,16 @@ def capture_scene(
         # ----- Produce the output data based on the extracted layers. -----
 
         write_output_data(
-            object_name=object_name,
-            I=layers_dict["<root>"],
+            output_name=output_name,
+            # I=layers_dict["<root>"],
             S0=layers_dict["S0"],
             S1=layers_dict["S1"],
             S2=layers_dict["S2"],
+            S3=layers_dict["S3"],
             normals=layers_dict["nn"],
-            positions=layers_dict["pos"],
+            # positions=layers_dict["pos"],
             index=index,
+            specular_amount=specular_amount,
         )
     except Exception as e:
         print(f"{Fore.LIGHTMAGENTA_EX} Exception: {e}.{Fore.WHITE}")
@@ -281,14 +294,18 @@ def capture_scene(
 
 def main() -> None:
     debug_stop_iteration = 1
-    camera_width = 1920
-    camera_height = 1450
+    camera_width = 1224  # 1920
+    camera_height = 1024  # 1450
     sample_count = 56  # Higher means better quality - 16, 156, 256
     scene_files_path = "./scene_files/"
 
-    chosen_shape = "armadillo"  # dragon, thai, armadillo, sphere, cube
+    chosen_shape = "dragon"  # dragon, thai, armadillo, sphere, cube
     chosen_camera = "persp"  # orth, persp
     chosen_material = "pplastic"  # pplastic, conductor
+    chosen_reflectance = "diffuse"  # diffuse, specular, mixed, realistic
+
+    # * OK sphere_persp_pplastic_diffuse
+    # * OK dragon_persp_pplastic_diffuse
 
     scene_path = (
         f"{scene_files_path}{chosen_shape}/{chosen_camera}_{chosen_material}.xml"
@@ -309,13 +326,14 @@ def main() -> None:
             return
         print(f"Starting with angle {angle_index + 1}/{total}...")
         capture_scene(
-            object_name=f"{chosen_shape}_{chosen_camera}_{chosen_material}",
+            output_name=f"{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}",
             scene_file_path=scene_path,
             index=angle_index,
             camera_width=camera_width,
             camera_height=camera_height,
             angle=current_angle,
             sample_count=sample_count,
+            chosen_reflectance=chosen_reflectance,
         )
         print(f"{angle_index + 1}/{total} processed.\n")
 

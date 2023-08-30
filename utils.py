@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # (llvm, cuda) + (mono, spectral) + (polarized)
-mi.set_variant("llvm_spectral_polarized")
+mi.set_variant("llvm_mono_polarized")
 
 
 def extract_layer_as_numpy(
