@@ -50,7 +50,7 @@ def extract_chosen_layers_as_numpy(
         layer[0]: np.array(
             layer[1].convert(
                 layer_name_to_px_format_dict[layer[0]],
-                mi.Struct.Type.Float32,
+                mi.Struct.Type.Float64,  # previously 32
                 srgb_gamma=False,
             )
         )

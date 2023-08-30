@@ -157,6 +157,18 @@ def write_output_data(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
     )
 
+    # ! Generalize this to compute the light direction for comparator.
+    # import numpy as np
+
+    # armadillo_position = np.array([0, -0.08, 0])  # Adjust the position if needed based on the translation
+    # light_position = np.array([90.0, 90.0, 75.0])
+
+    # light_direction = light_position - armadillo_position
+    # light_direction = light_direction / np.linalg.norm(light_direction)  # Normalize the direction vector
+
+    # print("Estimated light direction:", light_direction)
+    # ! ----
+
     # ----- Write computed data as files. -----
 
     imgs_path = f"{output_directory}{output_name}_{index}_"
