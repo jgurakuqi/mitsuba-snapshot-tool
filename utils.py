@@ -1,9 +1,106 @@
 import mitsuba as mi
 import numpy as np
 import matplotlib.pyplot as plt
+from cv2 import imwrite
+from os import path, makedirs
 
 # (llvm, cuda) + (mono, spectral) + (polarized)
-mi.set_variant("llvm_mono_polarized")
+mi.set_variant("cuda_mono_polarized")
+
+
+def create_directory(directory: str):
+    """
+    Create the folder in the given path if it does not exist.
+
+    Args:
+        directory (str): path to check.
+    """
+    try:
+        if not path.exists(directory):
+            print(f"Folder '{directory}' does not exists. Starting creation...")
+            makedirs(directory)
+            print(f"Folder '{directory}' created successfully.")
+    except OSError as e:
+        print(f"Error creating folder: {e}")
+
+
+def check_output_folders(
+    chosen_shape: str,
+    output_directory: str,
+    comparator_folder_name: str,
+    images_folder_name: str,
+    deep_shape_folder_name: str,
+) -> None:
+    """
+    Check if the output folders for images and .mat files exist. If not, create
+    the missing ones.
+
+    Args:
+        chosen_shape (str): Chosen Mitsuba shape to render. Used to name the internal folder.
+        output_directory (str): Base output directory which includes all the folders of every kind
+        of output.
+        comparator_folder_name (str): Relative folder path for the comparator outputs.
+        images_folder_name (str): Relative folder path for the output images.
+        deep_shape_folder_name (str): Relative folder path for the Deep Shape Network outputs.
+    """
+    # *** CHECKS folders for output images. ***
+
+    create_directory(output_directory)
+    create_directory(f"{output_directory}{images_folder_name}")
+    create_directory(f"{output_directory}{images_folder_name}{chosen_shape}/")
+
+    # *** CHECKS folders for .mat outputs for Matlab comparator. ***
+
+    comparator_folder_path = f"{output_directory}{comparator_folder_name}"
+    # Check if comparator output folder exists, ...
+    create_directory(comparator_folder_path)
+    # Check if comparator-shape folder exists, ...
+    current_scene_comparator_path = f"{comparator_folder_path}{chosen_shape}/"
+    create_directory(current_scene_comparator_path)
+
+    # *** CHECKS folders for .mat outputs for Deep Shape's Neural Network. ***
+
+    create_directory(f"{output_directory}{deep_shape_folder_name}")
+    create_directory(f"{output_directory}{deep_shape_folder_name}{chosen_shape}/")
+
+
+def write_output_images(
+    S0: np.ndarray,
+    dolp: np.ndarray,
+    angle_n: np.ndarray,
+    normals: np.ndarray,
+    output_directory: str,
+    images_folder_name: str,
+    chosen_shape: str,
+    chosen_camera: str,
+    chosen_material: str,
+    chosen_reflectance: str,
+    angle: float,
+) -> None:
+    """
+    Save the given Polarization information as file for purposes of debug.
+
+    Args:
+        S0 (np.ndarray): Stoke 0 (i.e., total intensity).
+        dolp (np.ndarray): Degree of linear polarization.
+        angle_n (np.ndarray): Colourized angle of linear polarization.
+        normals (np.ndarray): Ground truth surface normals.
+        output_directory (str): Pathname of the top level folder which will contain all
+        kinds of outputs.
+        images_folder_name (str): Relative path to folder containing output images.
+        chosen_shape (str): Chosen Mitsuba shape to be rendered. Used to name the internal folder to
+        group the output images by shape.
+        chosen_camera (str): Chosen camera type. Used for the filename.
+        chosen_material (str): Chosen shape's material. Used for the filename.
+        chosen_reflectance (str): Chosen shape's reflectance. Used for the filename.
+        angle (int): Current view angle. Used for the filename.
+    """
+    prefix_path = f"{output_directory}{images_folder_name}{chosen_shape}/{chosen_camera}_{chosen_material}_{chosen_reflectance}_{angle}_"
+    # 127.5 = 250 * 0.5
+    imwrite(f"{prefix_path}S0.png", np.clip(S0 * 255.0, 0, 255).astype(np.uint8))
+    imwrite(f"{prefix_path}DOLP.png", (dolp * 255.0).astype(np.uint8))
+    imwrite(f"{prefix_path}AOLP_COLOURED.png", angle_n)
+    imwrite(f"{prefix_path}NORMALS.png", ((normals + 1.0) * 127.5).astype(np.uint8))
 
 
 def extract_layer_as_numpy(

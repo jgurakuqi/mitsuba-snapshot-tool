@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<scene version="0.5.0">
+<scene version="3.0.0">
     <!-- Polarized plastic sphere -->
     <shape type="sphere">
-        <float name="radius" value="5." />
-        <transform name="toWorld">
-            <scale x="0.4" y="0.4" z="0.4" />
-        </transform>
+        <float name="radius" value="0.15" />
         <bsdf type="pplastic">
             <!-- specular reflectance is 1. by default -->
             <rgb name="specular_reflectance" value="$specular" />
@@ -36,8 +33,8 @@
     <!-- perspective Sensor definition -->
     <sensor type="perspective">
         <!-- <float name="fov" value="$fov" /> -->
-        <transform name="toWorld">
-            <lookat origin="0, 0, 13." target="0, 0, 0" up="0, 1, 0" />
+        <transform name="to_world">
+            <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
         </transform>
         <film type="hdrfilm">

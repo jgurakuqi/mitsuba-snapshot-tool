@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<scene version="0.5.0">
+<scene version="3.0.0">
     <!-- Pplastic Dragon -->
     <shape type="ply">
         <string name="filename" value="chinese_dragon.ply" />
@@ -34,9 +34,9 @@
     <!-- perspective Sensor definition -->
     <sensor type="perspective">
         <!-- <float name="fov" value="90" /> -->
-        <transform name="toWorld">
+        <transform name="to_world">
             <!-- 1.2 to give a slightly skewed view from down -->
-            <lookat origin="0, -0.3, 1." target="0, 0, 0" up="0, 1, 0" />
+            <lookat origin="0., 0., 1." target="0, 0, 0" up="0, 1, 0" />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
         </transform>
         <film type="hdrfilm">
