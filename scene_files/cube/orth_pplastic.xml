@@ -29,7 +29,7 @@
     <!-- light source -->
     <emitter type="point">
         <spectrum name="intensity" value="2000000" />
-        <point name="position" x="0." y="0.0" z="1000." />
+        <point name="position" x="100." y="100.0" z="1000." />
     </emitter>
 
     <!-- Orthographic Sensor definition -->

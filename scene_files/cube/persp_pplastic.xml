@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene version="3.0.0">
-    <!-- Cubic conductor object definition -->
+
     <shape type="cube" id="conductor_cube">
         <transform name="to_world">
             <scale x="1.8" y="1.8" z="1.8" />
@@ -13,7 +13,7 @@
             <float name="alpha" value="0.06" />
         </bsdf>
     </shape>
-    <!-- Integrator definition -->
+
     <integrator type="stokes" id="polarized_integrator">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
@@ -28,9 +28,13 @@
         <spectrum name="radiance" value="1.0" />
     </emitter> -->
 
-    <emitter type="point">
+    <!-- <emitter type="point">
         <spectrum name="intensity" value="2000000" />
         <point name="position" x="50." y="-15.0" z="100." />
+    </emitter> -->
+    <emitter type="point">
+        <spectrum name="intensity" value="2000000" />
+        <point name="position" x="100." y="100." z="1000." />
     </emitter>
 
     <!-- perspective Sensor -->

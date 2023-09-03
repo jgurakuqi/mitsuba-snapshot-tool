@@ -5,7 +5,7 @@ from cv2 import imwrite
 from os import path, makedirs
 
 # (llvm, cuda) + (mono, spectral) + (polarized)
-mi.set_variant("cuda_mono_polarized")
+mi.set_variant("llvm_mono_polarized")
 
 
 def create_directory(directory: str):

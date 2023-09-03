@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<scene version="0.5.0">
+<scene version="3.0.0">
 
     <!-- Conductor sphere -->
     <shape type="sphere">
         <float name="radius" value="0.5" />
-        <transform name="toWorld">
+        <transform name="to_world">
             <translate x="0" y="0" z="0" />
         </transform>
         <bsdf type="roughconductor">
-            <string name="material" value="Ag" />
+            <string name="material" value="Al" />
         </bsdf>
     </shape>
 
@@ -29,7 +29,7 @@
 
     <!-- Orthographic Sensor definition -->
     <sensor type="orthographic">
-        <transform name="toWorld">
+        <transform name="to_world">
             <lookat target='0, 0, 0' origin='5, 5, 5' up='0, 1, 0' />
             <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
             <rotate x="1.0" y="0.0" z="0.0" angle="$tilt" />

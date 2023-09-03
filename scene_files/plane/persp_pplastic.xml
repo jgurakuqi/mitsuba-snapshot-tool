@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scene version="3.0.0">
+    <!-- Pplastic Dragon -->
+    <shape type="rectangle">
+        <boolean name="flip_normals" value="false" />
+        <transform name="to_world">
+            <scale x="10." y="10." z="10." />
+        </transform>
+        <bsdf type="pplastic">
+            <rgb name="specular_reflectance" value="$specular" />
+            <rgb name="diffuse_reflectance" value="$diffuse" />
+            <float name="alpha" value="0.2" />
+        </bsdf>
+    </shape>
+
+    <!-- Integrator definition -->
+    <integrator type="stokes">
+        <integrator type="aov">
+            <string name="aovs" value="nn:geo_normal,pos:position" />
+            <integrator type='path'>
+                <integer name="max_depth" value="17" />
+            </integrator>
+        </integrator>
+    </integrator>
+
+    <!-- Light source -->
+    <!-- <emitter type="point">
+        <spectrum name="intensity" value="2000000" />
+        <point name="position" x="90." y="90.0" z="75." />
+    </emitter> -->
+    <emitter type="point">
+        <spectrum name="intensity" value="20000" />
+        <point name="position" x="0." y="0.0" z="1000." />
+    </emitter>
+
+    <!-- perspective Sensor definition -->
+    <sensor type="perspective">
+        <!-- <float name="fov" value="90" /> -->
+        <transform name="to_world">
+            <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
+            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
+        </transform>
+        <film type="hdrfilm">
+            <rfilter type="gaussian">
+                <float name="stddev" value="0.8" />
+            </rfilter>
+            <integer name="width" value="$camera_width" />
+            <integer name="height" value="$camera_height" />
+            <string name="pixel_format" value="luminance" />
+        </film>
+        <sampler type="multijitter">
+            <integer name="sample_count" value="$sample_count" />
+        </sampler>
+    </sensor>
+
+</scene>

@@ -136,7 +136,11 @@ def write_output_data(
     # *** Compute polarization info ***
 
     S0[S0 == 0] = np.finfo(float).eps  # Prevent Zero-Divisions in Dolp computation.
+    # np.set_printoptions(threshold=np.inf)
+    # print(f"S2: {S2}\n\n\nS1: {S1}")
     aolp = 0.5 * np.arctan2(S2, S1)
+    # print(f"\n\n\nAolp: {aolp}\n\n")
+    # return
     dolp = np.sqrt(S1**2 + S2**2) / S0
     angle_n = cv.applyColorMap(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
@@ -340,7 +344,7 @@ def main() -> None:
             camera_height=1024,
             angle=current_angle,
             sample_count=56,  # Higher --> better quality (16, 156, 256)
-            chosen_shape="cube",  # dragon, thai, armadillo, sphere, cube
+            chosen_shape="cube",  # dragon, thai, armadillo, bunny, sphere, cube, pyramid, plane
             chosen_camera="orth",  # orth, persp
             chosen_material="pplastic",  # pplastic, conductor
             chosen_reflectance="diffuse",  # diffuse, specular, mixed, realistic
