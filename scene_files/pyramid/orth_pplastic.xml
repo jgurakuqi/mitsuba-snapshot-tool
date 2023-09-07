@@ -4,7 +4,7 @@
     <shape type="ply">
         <string name="filename" value="pyramid.ply" />
         <transform name="to_world">
-            <scale x="2." y="2." z="2." />
+            <scale x="5.9" y="5.9" z="5.9" />
         </transform>
         <bsdf type="pplastic">
             <rgb name="specular_reflectance" value="$specular" />
@@ -13,7 +13,6 @@
         </bsdf>
     </shape>
 
-    <!-- Integrator definition -->
     <integrator type="stokes">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
@@ -24,15 +23,13 @@
     </integrator>
 
     <emitter type="point">
-        <spectrum name="intensity" value="2000000" />
+        <spectrum name="intensity" value="2500000" />
         <point name="position" x="0." y="0.0" z="1000." />
     </emitter>
 
-    <!-- Orthographic Sensor definition -->
     <sensor type="orthographic">
         <transform name="to_world">
             <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
-            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
         </transform>
         <film type="hdrfilm">
             <rfilter type="gaussian">

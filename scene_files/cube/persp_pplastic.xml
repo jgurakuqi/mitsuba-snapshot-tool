@@ -2,12 +2,13 @@
 <scene version="3.0.0">
 
     <shape type="cube" id="conductor_cube">
-        <transform name="to_world">
+        <!-- <transform name="to_world">
             <scale x="1.8" y="1.8" z="1.8" />
-            <translate y="4.5" />
+        </transform> -->
+        <transform name="to_world">
+            <scale x="$computed_scale" y="$computed_scale" z="$computed_scale" />
         </transform>
         <bsdf type="pplastic">
-            <!-- <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" /> -->
             <rgb name="specular_reflectance" value="$specular" />
             <rgb name="diffuse_reflectance" value="$diffuse" />
             <float name="alpha" value="0.06" />
@@ -23,25 +24,16 @@
         </integrator>
     </integrator>
 
-    <!-- light source -->
-    <!-- <emitter type="constant">
-        <spectrum name="radiance" value="1.0" />
-    </emitter> -->
-
-    <!-- <emitter type="point">
-        <spectrum name="intensity" value="2000000" />
-        <point name="position" x="50." y="-15.0" z="100." />
-    </emitter> -->
     <emitter type="point">
-        <spectrum name="intensity" value="2000000" />
-        <point name="position" x="100." y="100." z="1000." />
+        <spectrum name="intensity" value="5000000" />
+        <point name="position" x="1000." y="0." z="1000." />
     </emitter>
 
-    <!-- perspective Sensor -->
     <sensor type="perspective">
+        <float name="fov" value="$fov" />
         <transform name="to_world">
-            <lookat origin="0, 0, 13." target="0, 5, 0" up="0, 1, 0" />
-            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
+            <!-- <lookat target='0, 0, 0' origin='8, 8, 8' up='0, 1, 0' /> -->
+            <lookat origin="2, 0, 2." target="0, 0, 0" up="0, 1, 0" />
         </transform>
         <film type="hdrfilm">
             <rfilter type="gaussian">

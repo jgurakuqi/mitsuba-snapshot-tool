@@ -1,37 +1,22 @@
 from colorama import Fore
 import numpy as np
-from torch import cuda
 import cv2 as cv
 import utils
 import mitsuba as mi
-import pickle
 import numpy as np
 from scipy.io import savemat
-
 import threading
-
-
-def load_interpolations(file_path: str):
-    """
-    Load the interpolators.
-
-    Args:
-        file_path (str): path to the interpolators.
-
-    Returns:
-        _type_: _description_
-    """
-    with open(file_path, "rb") as f:
-        return pickle.load(f)
 
 
 def compute_priors(
     S0: np.ndarray,
+    S1: np.ndarray,
+    S2: np.ndarray,
     aolp: np.ndarray,
     dolp: np.ndarray,
     mask: np.ndarray,
     normals: np.ndarray,
-    angle: float,
+    fov: float,
     output_directory: str,
     deep_shape_folder_name: str,
     chosen_shape: str,
@@ -50,7 +35,7 @@ def compute_priors(
         normals (np.ndarray): Surface normals of said object.
         output_directory (str): directory path for storing outputs.
     """
-    interps = load_interpolations("deepSfP_priors_reverse.pkl")
+    interps = utils.load_interpolations("deepSfP_priors_reverse.pkl")
 
     # ground truth normals.
     normals[:, 1] *= -1
@@ -74,7 +59,7 @@ def compute_priors(
     curr_prior = np.zeros((height * width, 9))
 
     def interpolate_thread(i):
-        print(f"Interpolating {i} ...")
+        print(f"     - Interpolating {i} ...")
         curr_prior[flattened_mask, i] = interps[i](
             masked_flattened_aolp, masked_flattened_dolp
         )
@@ -93,13 +78,15 @@ def compute_priors(
 
     output_path = f"{output_directory}{deep_shape_folder_name}{chosen_shape}/"
 
+    I0, I45, I90, I135 = utils.simulate_pfa_mosaic(S0, S1, S2)
+
     savemat(
-        f"{output_path}{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{angle}.mat",
+        f"{output_path}{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{fov}_deg_fov.mat",
         {
             "normals_prior": curr_prior,
             "mask": mask.astype(int),
-            "normals_gt": normals,
-            "images": S0,  # np.stack([I0, I45, I90, I135], axis=2)
+            "normals_gt": normals,  # np.clip(normals),
+            "images": np.stack([I0, I45, I90, I135], axis=2),  # S0
         },
     )
 
@@ -111,7 +98,7 @@ def write_output_data(
     S3: np.ndarray,
     normals: np.ndarray,
     specular_amount: float,
-    angle: float,
+    fov: float,
     chosen_shape: str,
     chosen_camera: str,
     chosen_material: str,
@@ -136,11 +123,8 @@ def write_output_data(
     # *** Compute polarization info ***
 
     S0[S0 == 0] = np.finfo(float).eps  # Prevent Zero-Divisions in Dolp computation.
-    # np.set_printoptions(threshold=np.inf)
-    # print(f"S2: {S2}\n\n\nS1: {S1}")
+    np.set_printoptions(threshold=np.inf)
     aolp = 0.5 * np.arctan2(S2, S1)
-    # print(f"\n\n\nAolp: {aolp}\n\n")
-    # return
     dolp = np.sqrt(S1**2 + S2**2) / S0
     angle_n = cv.applyColorMap(
         ((aolp + np.pi / 2) / np.pi * 255.0).astype(np.uint8), cv.COLORMAP_HSV
@@ -157,7 +141,6 @@ def write_output_data(
     )
 
     # *** Store the output images ***
-    # ! Chosen reflectance might be temporary
     utils.write_output_images(
         S0=S0,
         dolp=dolp,
@@ -169,27 +152,17 @@ def write_output_data(
         chosen_camera=chosen_camera,
         chosen_material=chosen_material,
         chosen_reflectance=chosen_reflectance,
-        angle=angle,
+        fov=fov,
     )
-
-    # if "conductor" in output_name:
-    #     # spec_mask = mask * 0  spec_mask[S0 > 5.0] = 100 spec_mask = mask.astype(bool)
-    #     # Alternative:
-    #     # temp_S0 = np.clip(S0 * 255.0, 0, 255).astype(np.uint8) temp_S0[temp_S0 == 255] = 0
-    #     # temp_S0[temp_S0 < 230] = 0  spec_mask = temp_S0.astype(bool)
-    #     spec_mask = S0.astype(bool)
-    # else: spec_mask = (mask.astype(bool) if specular_amount != 0.0 else (mask * 0).astype(bool))
-
     # *** Compute masks for Deep Shape Neural Network and Matlab comparator. ***
 
     mask = (np.sum(np.square(normals), axis=-1) > 0.0).astype(np.uint8)
-    # utils.plot_rgb_image(np.clip(mask, 0, 255).astype(np.uint8))
     spec_mask = mask.astype(bool) if specular_amount != 0.0 else (mask * 0).astype(bool)
 
     savemat(
-        f"{output_directory}{comparator_folder_name}{chosen_shape}/{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{angle}.mat",
+        f"{output_directory}{comparator_folder_name}{chosen_shape}/{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{fov}_deg_fov.mat",
         {
-            "images": S0,
+            # "images": S0,
             "unpol": S0 - np.sqrt(S1**2 + S2**2 + S3**2),
             "dolp": dolp,
             "aolp": aolp,
@@ -203,11 +176,13 @@ def write_output_data(
     if invoke_compute_priors:
         compute_priors(
             S0=S0,
+            S1=S1,
+            S2=S2,
             aolp=aolp,
             dolp=dolp,
             mask=mask,
             normals=normals,
-            angle=angle,
+            fov=fov,
             output_directory=output_directory,
             deep_shape_folder_name=deep_shape_folder_name,
             chosen_shape=chosen_shape,
@@ -218,19 +193,18 @@ def write_output_data(
 
 
 def capture_scene(
-    camera_width: int,
-    camera_height: int,
     chosen_shape: str,
     chosen_camera: str,
     chosen_material: str,
     chosen_reflectance: str,
-    scenes_folder_path: str,
-    angle: float,
+    fov: float,
+    fov_scale: float,
+    scenes_folder_path: str = "./scene_files/",
+    camera_width: int = 1224,
+    camera_height: int = 1024,
     sample_count: int = 16,
     invoke_compute_priors: bool = True,
-) -> tuple[
-    np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
-]:
+) -> None:
     """
     Capture data from a scene using Mitsuba.
 
@@ -238,22 +212,13 @@ def capture_scene(
         scene_file_path (str): Path to the scene file to render.
         camera_width (int, optional): Width of the camera sensor. Defaults to 1024.
         camera_height (int, optional): Height of the camera sensor. Defaults to 768.
-        angle (float, optional): Camera rotation angle in degrees. Defaults to 0.
+        fov (float):
         sample_count (int, optional): Number of samples to use for rendering. Defaults to 3.
-        tilt (float, optional): Camera tilt angle in degrees. Defaults to 0.
-
-    Returns:
-        tuple: A tuple containing the captured data as NumPy arrays:
-            - I: RGB image (camera rendering)
-            - S0, S1, S2, S3: Stokes parameters
-            - normals: Surface normals
-            - positions: Surface positions
     """
     reflectance_types = {
         "specular": {"specular": 1.0, "diffuse": 0.0},
         "diffuse": {"diffuse": 1.0, "specular": 0.0},
-        "mixed": {"diffuse": 0.5, "specular": 0.5},
-        "realistic": {"diffuse": 0.2, "specular": 1.0},
+        "realistic_specular": {"diffuse": 0.1, "specular": 1.0},
     }
     specular_amount = reflectance_types[chosen_reflectance]["specular"]
     diffuse_amount = reflectance_types[chosen_reflectance]["diffuse"]
@@ -262,47 +227,58 @@ def capture_scene(
         f"{scenes_folder_path}{chosen_shape}/{chosen_camera}_{chosen_material}.xml"
     )
     try:
-        # ----- Load the scene ----.
-        if "conductor" in scene_file_path:
-            # Use default reflectance coefficient with conductors.
+        if "orth" in scene_file_path:
+            # Orthografic camera
             scene = mi.load_file(
                 scene_file_path,
                 camera_width=camera_width,
                 camera_height=camera_height,
-                angle=angle,
-                sample_count=sample_count,
-            )
-        else:
-            # Use chosen coefficients with pplastics.
-            scene = mi.load_file(
-                scene_file_path,
-                camera_width=camera_width,
-                camera_height=camera_height,
-                angle=angle,
                 sample_count=sample_count,
                 diffuse=diffuse_amount,
                 specular=specular_amount,
             )
+        else:
+            if fov_scale != None:
+                # Perspective camera with re-scaling.
+                scene = mi.load_file(
+                    scene_file_path,
+                    camera_width=camera_width,
+                    camera_height=camera_height,
+                    sample_count=sample_count,
+                    diffuse=diffuse_amount,
+                    specular=specular_amount,
+                    fov=fov,
+                    computed_scale=fov_scale,
+                )
+            else:
+                # Perspective camera without re-scaling.
+                scene = mi.load_file(
+                    scene_file_path,
+                    camera_width=camera_width,
+                    camera_height=camera_height,
+                    sample_count=sample_count,
+                    diffuse=diffuse_amount,
+                    specular=specular_amount,
+                    fov=fov,
+                )
 
         sensor = scene.sensors()[0]
         scene.integrator().render(scene, sensor)
 
-        # ----- Extract film's layers (i.e., stokes, normals, etc...) -----
+        # *** Extract film's layers (i.e., stokes, normals, etc...) ***
 
         layers_dict = utils.extract_chosen_layers_as_numpy(
             sensor.film(),
             {
-                # "<root>": mi.Bitmap.PixelFormat.RGB,
                 "S0": mi.Bitmap.PixelFormat.Y,
                 "S1": mi.Bitmap.PixelFormat.Y,
                 "S2": mi.Bitmap.PixelFormat.Y,
                 "S3": mi.Bitmap.PixelFormat.Y,
                 "nn": mi.Bitmap.PixelFormat.XYZ,
-                "pos": mi.Bitmap.PixelFormat.XYZ,
             },
         )
 
-        # ----- Produce the output data based on the extracted layers. -----
+        # *** Produce the output data based on the extracted layers. ***
 
         write_output_data(
             S0=layers_dict["S0"],
@@ -310,48 +286,99 @@ def capture_scene(
             S2=layers_dict["S2"],
             S3=layers_dict["S3"],
             normals=layers_dict["nn"],
-            angle=angle,
             specular_amount=specular_amount,
             chosen_shape=chosen_shape,
             chosen_camera=chosen_camera,
             chosen_material=chosen_material,
             chosen_reflectance=chosen_reflectance,
             invoke_compute_priors=invoke_compute_priors,
+            fov=fov,
         )
     except Exception as e:
-        # print(f"{Fore.LIGHTMAGENTA_EX} Exception: {e}.{Fore.WHITE}")
         raise ValueError(f"{Fore.LIGHTMAGENTA_EX} Exception: {e}.{Fore.WHITE}")
-        # return
 
 
 def main() -> None:
-    debug_stop_iteration = 1
+    fovs_dict = {
+        "sphere": {
+            10: 0.25,
+            20: 0.5,
+            30: 0.75,
+            40: 1.0,
+            50: 1.25,
+            60: 1.5,
+            70: 1.75,
+            80: 2.0,
+            90: 2.25,
+            0: "Orthografic",
+        },
+    }
+    chosen_shape = "plane"  # dragon, armadillo, bunny, sphere, cube, pyramid, plane
+    chosen_material = "pplastic"  # pplastic, conductor
+    chosen_reflectance = "diffuse"  # diffuse, specular, realistic_specular
+    chosen_sample_count = 1  # 1, 16, 56, 90, 156, 256
 
-    total = len(range(0, 360, 60))
-    total = total if total < debug_stop_iteration else debug_stop_iteration
-    print("Start processing:\n")
+    fovs_dict_keys = fovs_dict[chosen_shape].keys()
+    fovs_dict_len = len(fovs_dict_keys)
 
-    # ? cuda.init()
-    # Start capturing the scene from different angles:
-    for angle_index, current_angle in enumerate(range(0, 360, 60)):
-        # ? cuda.empty_cache()
-        if debug_stop_iteration == angle_index:
-            print(f"[DEBUG]: PROCESSING STOPPED AT ITERATION {debug_stop_iteration}")
-            return
-        print(f"Starting with angle {angle_index + 1}/{total}...")
+    invoke_compute_priors = False  # ! FALSE PREVENTS PRIORS
+
+    match chosen_shape:
+        case "cube":
+            scale_factor = 0.3
+
+            fovs_dict["cube"] = {
+                key: (value * scale_factor) if key != 0 else "Orthografic"
+                for (key, value) in fovs_dict["sphere"].items()
+            }
+        case "dragon":
+            scale_factor = 1.3
+
+            fovs_dict["dragon"] = {
+                key: (value * scale_factor) if key != 0 else "Orthografic"
+                for (key, value) in fovs_dict["sphere"].items()
+            }
+
+        case "bunny":
+            scale_factor = 2.15
+
+            fovs_dict["bunny"] = {
+                key: (value * scale_factor) if key != 0 else "Orthografic"
+                for (key, value) in fovs_dict["sphere"].items()
+            }
+
+        case "armadillo":
+            scale_factor = 2.7
+
+            fovs_dict["armadillo"] = {
+                key: (value * scale_factor) if key != 0 else "Orthografic"
+                for (key, value) in fovs_dict["sphere"].items()
+            }
+
+        case "pyramid":
+            scale_factor = 1.9
+
+            fovs_dict["pyramid"] = {
+                key: (value * scale_factor) if key != 0 else "Orthografic"
+                for (key, value) in fovs_dict["sphere"].items()
+            }
+        case _:
+            raise ValueError("The chosen shape does not exist!")
+
+    for current_fov_index, current_fov in enumerate(fovs_dict[chosen_shape].keys()):
+        # if current_fov == 0:
         capture_scene(
-            camera_width=1224,
-            camera_height=1024,
-            angle=current_angle,
-            sample_count=56,  # Higher --> better quality (16, 156, 256)
-            chosen_shape="cube",  # dragon, thai, armadillo, bunny, sphere, cube, pyramid, plane
-            chosen_camera="orth",  # orth, persp
-            chosen_material="pplastic",  # pplastic, conductor
-            chosen_reflectance="diffuse",  # diffuse, specular, mixed, realistic
-            scenes_folder_path="./scene_files/",
-            invoke_compute_priors=False,  # ! FALSE PREVENTS PRIORS COMPUTATION
+            fov=current_fov,
+            fov_scale=fovs_dict[chosen_shape][current_fov],
+            sample_count=chosen_sample_count,
+            chosen_shape=chosen_shape,
+            chosen_camera="orth" if current_fov == 0 else "persp",
+            chosen_material=chosen_material,
+            chosen_reflectance=chosen_reflectance,
+            invoke_compute_priors=invoke_compute_priors,
         )
-        print(f"{angle_index + 1}/{total} processed.\n")
+
+        print(f"Processed {current_fov_index + 1} of {fovs_dict_len}")
 
 
 if __name__ == "__main__":

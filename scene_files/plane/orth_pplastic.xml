@@ -12,7 +12,6 @@
         </bsdf>
     </shape>
 
-    <!-- Integrator definition -->
     <integrator type="stokes">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
@@ -27,11 +26,9 @@
         <point name="position" x="0." y="0.0" z="1000." />
     </emitter>
 
-    <!-- Orthographic Sensor definition -->
     <sensor type="orthographic">
         <transform name="to_world">
             <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
-            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
         </transform>
         <film type="hdrfilm">
             <rfilter type="gaussian">

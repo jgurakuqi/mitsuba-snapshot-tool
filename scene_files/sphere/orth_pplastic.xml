@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene version="3.0.0">
 
-    <!-- Polarized plastic sphere -->
     <shape type="sphere">
         <float name="radius" value="0.15" />
         <bsdf type="pplastic">
-            <!-- <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" /> -->
             <rgb name="specular_reflectance" value="$specular" />
             <rgb name="diffuse_reflectance" value="$diffuse" />
             <float name="alpha" value="0.06" />
         </bsdf>
+        <transform name="to_world">
+            <scale x="3.15" y="3.15" z="3.15" />
+        </transform>
     </shape>
 
-    <!-- Integrator definition -->
     <integrator type="stokes">
         <integrator type="aov">
             <string name="aovs" value="nn:geo_normal,pos:position" />
@@ -22,25 +22,14 @@
         </integrator>
     </integrator>
 
-    <!-- light source -->
-    <!-- <emitter type="constant">
-        <spectrum name="radiance" value="1.0" />
-    </emitter> -->
-
-    <!-- <emitter type="point">
-        <spectrum name="intensity" value="1005000" />
-        <point name="position" x="100." y="-20.0" z="50." />
-    </emitter> -->
     <emitter type="point">
         <spectrum name="intensity" value="2000000" />
         <point name="position" x="0." y="0.0" z="1000." />
     </emitter>
 
-    <!-- Orthographic Sensor definition -->
     <sensor type="orthographic">
         <transform name="to_world">
             <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
-            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
         </transform>
         <film type="hdrfilm">
             <rfilter type="gaussian">

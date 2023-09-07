@@ -2,11 +2,9 @@
 <scene version="3.0.0">
 
     <shape type="ply">
-        <string name="filename" value="armadillo_bin_resc_rot.ply" />
-        <boolean name="flip_normals" value="false" />
+        <string name="filename" value="armadillo.ply" />
         <transform name="to_world">
-            <scale x="8.5" y="8.5" z="8.5" />
-            <translate y="-0.12" />
+            <scale x="7.75" y="7.75" z="7.75" />
         </transform>
         <bsdf type="pplastic">
             <rgb name="specular_reflectance" value="$specular" />
@@ -24,9 +22,6 @@
         </integrator>
     </integrator>
 
-    <!-- <emitter type="constant">
-        <spectrum name="radiance" value="1." />
-    </emitter> -->
     <emitter type="point">
         <spectrum name="intensity" value="2000000" />
         <point name="position" x="0." y="0.0" z="1000." />
@@ -35,7 +30,6 @@
     <sensor type="orthographic">
         <transform name="to_world">
             <lookat origin="0, 0, 1." target="0, 0, 0" up="0, 1, 0" />
-            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
         </transform>
         <film type="hdrfilm">
             <rfilter type="gaussian">

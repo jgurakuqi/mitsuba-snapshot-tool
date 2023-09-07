@@ -4,12 +4,9 @@
     <!-- Conductor cube -->
     <shape type="cube">
         <transform name="to_world">
-            <!-- <scale x="0.3" y="0.3" z="0.3" /> -->
-            <scale x="0.4" y="0.4" z="0.4" />
+            <scale x="0.315" y="0.315" z="0.315" />
         </transform>
         <bsdf type="pplastic">
-            <!-- specular reflectance is 1. by default -->
-            <!-- <rgb name="diffuse_reflectance" value="0.05, 0.03, 0.1" /> -->
             <rgb name="specular_reflectance" value="$specular" />
             <rgb name="diffuse_reflectance" value="$diffuse" />
             <float name="alpha" value="0.06" />
@@ -28,16 +25,16 @@
 
     <!-- light source -->
     <emitter type="point">
-        <spectrum name="intensity" value="2000000" />
-        <point name="position" x="100." y="100.0" z="1000." />
+        <spectrum name="intensity" value="20" />
+        <!-- <point name="position" x="8." y="8." z="8." /> -->
+        <point name="position" x="2." y="0." z="2." />
     </emitter>
 
     <!-- Orthographic Sensor definition -->
     <sensor type="orthographic">
         <transform name="to_world">
-            <lookat target='0, 0, 0' origin='5, 5, 5' up='0, 1, 0' />
-            <!-- <lookat origin="0, 0, 0." target="0, 0, -10" up="0, 1, 0" /> -->
-            <rotate x="0.0" y="1.0" z="0.0" angle="$angle" />
+            <!-- <lookat target='0, 0, 0' origin='8, 8, 8' up='0, 1, 0' /> -->
+            <lookat origin="2, 0, 2." target="0, 0, 0" up="0, 1, 0" />
         </transform>
         <film type="hdrfilm">
             <rfilter type="gaussian">
