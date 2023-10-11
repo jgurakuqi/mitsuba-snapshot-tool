@@ -6,9 +6,10 @@ import mitsuba as mi
 import numpy as np
 from scipy.io import savemat
 import threading
+from os.path import exists
 
 
-def compute_priors(
+def generate_priors(
     S0: np.ndarray,
     S1: np.ndarray,
     S2: np.ndarray,
@@ -25,17 +26,51 @@ def compute_priors(
     chosen_reflectance: str,
 ) -> None:
     """
-    Computes the priors required by Deep Shape's Neural network.
+    Computes the priors required by Deep Shape's Neural network and stores normals and foreground
+    mask for comparisons among different Shape From Polarization techniques.
 
     Args:
-        S0 (np.ndarray): stoke 0, i.e., total intensity.
+        S0 (np.ndarray): Stoke 0
+        S1 (np.ndarray): Stoke 1
+        S2 (np.ndarray): Stoke 2
         aolp (np.ndarray): Angle of linear polarization.
         dolp (np.ndarray): Degree of linear polarization.
-        mask (np.ndarray): Binary mask for targeting only the prominent object.
-        normals (np.ndarray): Surface normals of said object.
-        output_directory (str): directory path for storing outputs.
+        mask (np.ndarray): Foreground mask.
+        normals (np.ndarray): Ground truth surface normals.
+        fov (float): Camera fov.
+        output_directory (str): Path of the output parent folder which contains
+        every kind of output. Defaults to "outputs/".
+        deep_shape_folder_name (str): Name of the Deep Shape's data folder. Defaults to "for_deep_shape/".
+        chosen_shape (str): Chosen shape.
+        chosen_camera (str): Chosen camera type (orthographic or perspective).
+        chosen_material (str): Chosen shape's material.
+        chosen_reflectance (str): Chosen reflectance amount.
     """
     interps = utils.load_interpolations("deepSfP_priors_reverse.pkl")
+
+    # *** Store mask and normals as npy files ***
+
+    output_path = f"{output_directory}{deep_shape_folder_name}{chosen_shape}/"
+
+    # npy_path = f"{output_path}{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{fov}_deg_fov_"
+
+    # if not exists(f"{npy_path}MASK.npy"):
+    #     np.save(f"{npy_path}MASK", mask)
+    # else:
+    #     print(f"Following file already exists: {npy_path}MASK.npy")
+
+    # if not exists(f"{npy_path}NORMALS.npy"):
+    #     np.save(f"{npy_path}NORMALS", normals)
+    # else:
+    #     print(f"Following file already exists: {npy_path}NORMALS.npy")
+
+    # *** Check if priors already exist before of computing them ***
+
+    mat_path = f"{output_path}{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{fov}_deg_fov.mat"
+
+    if exists(mat_path):
+        print("Priors already existing!")
+        return
 
     # ground truth normals.
     normals[:, 1] *= -1
@@ -54,7 +89,7 @@ def compute_priors(
         flattened_dolp[flattened_mask],
     )
 
-    # ----- Compute priors -----
+    # *** Compute priors with multithreading ***
 
     curr_prior = np.zeros((height * width, 9))
 
@@ -68,15 +103,14 @@ def compute_priors(
     for thread in threads:
         thread.start()
 
-    # widthait for all threads to finish
     for thread in threads:
         thread.join()
 
     curr_prior = np.reshape(curr_prior, (height, width, 9))
 
-    print("saving priors in .mat")
+    # *** Store output data ***
 
-    output_path = f"{output_directory}{deep_shape_folder_name}{chosen_shape}/"
+    print("saving priors in .mat")
 
     I0, I45, I90, I135 = utils.simulate_pfa_mosaic(S0, S1, S2)
 
@@ -107,18 +141,35 @@ def write_output_data(
     comparator_folder_name: str = "for_comparator/",
     images_folder_name: str = "images/",
     deep_shape_folder_name: str = "for_deep_shape/",
-    invoke_compute_priors: bool = True,
+    invoke_generate_priors: bool = True,
+    invoke_generate_matlab_data: bool = True,
 ) -> None:
-    """
-    Use the extracted layers from the rendered scene to compute and store information such
-    as the Degree and Angle of linear polarization, normals and other data.
+    """Use the extracted layers from the rendered scene to compute and store information
+    required by Deep Shape's Neural network and Smith's Matlab comparison to perform Shape
+    From Polarization.
 
     Args:
-        I (np.ndarray): Intensities.
         S0 (np.ndarray): Stoke 0
         S1 (np.ndarray): Stoke 1
         S2 (np.ndarray): Stoke 2
-        normals (np.ndarray): _description_
+        S3 (np.ndarray): Stoke 3
+        normals (np.ndarray): Ground truth normals
+        specular_amount (float): Amount of specular reflection of the rendered shape.
+        fov (float): Chosen Fov for rendered scene.
+        chosen_shape (str): Chosen shape.
+        chosen_camera (str): Chosen camera type (orthographic or perspective).
+        chosen_material (str): Chosen shape's material.
+        chosen_reflectance (str): Chosen reflectance amount.
+        output_directory (str, optional): Path of the output parent folder which contains
+        every kind of output. Defaults to "outputs/".
+        comparator_folder_name (str, optional): Name of the comparator output folder for storing
+        .mat files. Defaults to "for_comparator/".
+        images_folder_name (str, optional): Name of the output/debug images' folder. Defaults to "images/".
+        deep_shape_folder_name (str, optional): Name of the Deep Shape's data folder. Defaults to "for_deep_shape/".
+        invoke_generate_priors (bool, optional): Tells whether to perform priors' computation
+        or not. Defaults to True.
+        invoke_generate_matlab_data (bool, optional): Tells whether to compute or not the mat data required
+        by Smith's matlab comparator.
     """
     # *** Compute polarization info ***
 
@@ -157,24 +208,35 @@ def write_output_data(
     # *** Compute masks for Deep Shape Neural Network and Matlab comparator. ***
 
     mask = (np.sum(np.square(normals), axis=-1) > 0.0).astype(np.uint8)
-    spec_mask = mask.astype(bool) if specular_amount != 0.0 else (mask * 0).astype(bool)
 
-    savemat(
-        f"{output_directory}{comparator_folder_name}{chosen_shape}/{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{fov}_deg_fov.mat",
-        {
-            # "images": S0,
-            "unpol": S0 - np.sqrt(S1**2 + S2**2 + S3**2),
-            "dolp": dolp,
-            "aolp": aolp,
-            "mask": mask.astype(bool),
-            "spec": spec_mask,
-        },
-    )
+    # *** Pack and store the polarization data for Matlab comparator. ***
 
-    # ----- Compute input (with priors) for Deep Shape's Neural network. -----
+    mat_path = f"{output_directory}{comparator_folder_name}{chosen_shape}/"
+    mat_path = f"{mat_path}{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{fov}_deg_fov.mat"
 
-    if invoke_compute_priors:
-        compute_priors(
+    if not exists(mat_path) and invoke_generate_matlab_data:
+        spec_mask = (
+            mask.astype(bool) if specular_amount != 0.0 else (mask * 0).astype(bool)
+        )
+        savemat(
+            f"{output_directory}{comparator_folder_name}{chosen_shape}/{chosen_shape}_{chosen_camera}_{chosen_material}_{chosen_reflectance}_{fov}_deg_fov.mat",
+            {
+                # "images": S0,
+                "unpol": S0 - np.sqrt(S1**2 + S2**2 + S3**2),
+                "dolp": dolp,
+                "aolp": aolp,
+                "mask": mask.astype(bool),
+                "spec": spec_mask,
+                # "gt_normals": normals,
+            },
+        )
+    else:
+        print(f"Following file already exists: {mat_path}")
+
+    # *** Compute input (with priors) for Deep Shape's Neural network. ***
+
+    if invoke_generate_priors:
+        generate_priors(
             S0=S0,
             S1=S1,
             S2=S2,
@@ -199,26 +261,40 @@ def capture_scene(
     chosen_reflectance: str,
     fov: float,
     fov_scale: float,
+    sample_count: int,
     scenes_folder_path: str = "./scene_files/",
     camera_width: int = 1224,
     camera_height: int = 1024,
-    sample_count: int = 16,
-    invoke_compute_priors: bool = True,
+    invoke_generate_priors: bool = True,
+    invoke_generate_matlab_data: bool = True,
 ) -> None:
-    """
-    Capture data from a scene using Mitsuba.
+    """Capture data from a scene using Mitsuba 3 and store the data of the rendering
+    for the Deep Shape's Neural Network and for the Smith's matlab comparator.
 
     Args:
-        scene_file_path (str): Path to the scene file to render.
-        camera_width (int, optional): Width of the camera sensor. Defaults to 1024.
-        camera_height (int, optional): Height of the camera sensor. Defaults to 768.
-        fov (float):
-        sample_count (int, optional): Number of samples to use for rendering. Defaults to 3.
+        chosen_shape (str): Chosen shape.
+        chosen_camera (str): Chosen camera type (orthographic or perspective).
+        chosen_material (str): Chosen shape's material.
+        chosen_reflectance (str): Chosen reflectance amount.
+        fov (float): Chosen fov.
+        fov_scale (float): Scale factor to re-scale the chosen shape according to the
+        fov.
+        scenes_folder_path (str, optional): Path to the scene file to render.. Defaults to "./scene_files/".
+        camera_width (int, optional): Rendered scene's width. Defaults to 1224.
+        camera_height (int, optional): Rendered scene's height. Defaults to 1024.
+        sample_count (int, optional): Number of samples per pixel. Defaults to 16.
+        invoke_generate_priors (bool, optional): Tells whether the priors for Deep Shape must be
+        computed or not. Defaults to True.
+        invoke_generate_matlab_data (bool, optional): Tells whether to compute or not the mat data required
+        by Smith's matlab comparator.
+
+    Raises:
+        ValueError: Exception thrown if the rendering fails.
     """
     reflectance_types = {
-        "specular": {"specular": 1.0, "diffuse": 0.0},
+        # "specular": {"specular": 1.0, "diffuse": 0.0},
         "diffuse": {"diffuse": 1.0, "specular": 0.0},
-        "realistic_specular": {"diffuse": 0.1, "specular": 1.0},
+        "specular": {"diffuse": 0.2, "specular": 1.0},
     }
     specular_amount = reflectance_types[chosen_reflectance]["specular"]
     diffuse_amount = reflectance_types[chosen_reflectance]["diffuse"]
@@ -291,7 +367,8 @@ def capture_scene(
             chosen_camera=chosen_camera,
             chosen_material=chosen_material,
             chosen_reflectance=chosen_reflectance,
-            invoke_compute_priors=invoke_compute_priors,
+            invoke_generate_priors=invoke_generate_priors,
+            invoke_generate_matlab_data=invoke_generate_matlab_data,
             fov=fov,
         )
     except Exception as e:
@@ -315,13 +392,13 @@ def main() -> None:
     }
     chosen_shape = "plane"  # dragon, armadillo, bunny, sphere, cube, pyramid, plane
     chosen_material = "pplastic"  # pplastic, conductor
-    chosen_reflectance = "diffuse"  # diffuse, specular, realistic_specular
+    chosen_reflectance = "specular"  # diffuse, specular, _
     chosen_sample_count = 1  # 1, 16, 56, 90, 156, 256
 
     fovs_dict_keys = fovs_dict[chosen_shape].keys()
     fovs_dict_len = len(fovs_dict_keys)
 
-    invoke_compute_priors = False  # ! FALSE PREVENTS PRIORS
+    invoke_generate_priors = False  # ! FALSE PREVENTS PRIORS
 
     match chosen_shape:
         case "cube":
@@ -375,11 +452,91 @@ def main() -> None:
             chosen_camera="orth" if current_fov == 0 else "persp",
             chosen_material=chosen_material,
             chosen_reflectance=chosen_reflectance,
-            invoke_compute_priors=invoke_compute_priors,
+            invoke_generate_priors=invoke_generate_priors,
         )
 
         print(f"Processed {current_fov_index + 1} of {fovs_dict_len}")
 
 
+def main_all() -> None:
+    fovs_dict = {
+        "sphere": {
+            10: 0.25,
+            20: 0.5,
+            30: 0.75,
+            40: 1.0,
+            50: 1.25,
+            60: 1.5,
+            70: 1.75,
+            80: 2.0,
+            90: 2.25,
+            0: "Orthografic",
+        },
+    }
+    chosen_material = "pplastic"  # pplastic, conductor
+    chosen_reflectance = "realistic_specular"  # diffuse, specular, realistic_specular
+    chosen_sample_count = 132  # 1, 16, 56, 90, 156, 256
+
+    invoke_generate_priors = False  # ! -------------------------------------------
+    invoke_generate_matlab_data = False
+
+    scale_factor = 0.3
+    fovs_dict["cube"] = {
+        key: (value * scale_factor) if key != 0 else "Orthografic"
+        for (key, value) in fovs_dict["sphere"].items()
+    }
+    scale_factor = 1.3
+    fovs_dict["dragon"] = {
+        key: (value * scale_factor) if key != 0 else "Orthografic"
+        for (key, value) in fovs_dict["sphere"].items()
+    }
+
+    scale_factor = 2.15
+    fovs_dict["bunny"] = {
+        key: (value * scale_factor) if key != 0 else "Orthografic"
+        for (key, value) in fovs_dict["sphere"].items()
+    }
+
+    scale_factor = 2.7
+    fovs_dict["armadillo"] = {
+        key: (value * scale_factor) if key != 0 else "Orthografic"
+        for (key, value) in fovs_dict["sphere"].items()
+    }
+
+    scale_factor = 1.9
+    fovs_dict["pyramid"] = {
+        key: (value * scale_factor) if key != 0 else "Orthografic"
+        for (key, value) in fovs_dict["sphere"].items()
+    }
+
+    shapes_dict_keys = fovs_dict.keys()
+    shapes_dict_len = len(shapes_dict_keys)
+    for current_shape_index, current_shape in enumerate(fovs_dict.keys()):
+        fovs_dict_keys = fovs_dict[current_shape].keys()
+        fovs_dict_len = len(fovs_dict_keys)
+        for current_fov_index, current_fov in enumerate(
+            fovs_dict[current_shape].keys()
+        ):
+            print(
+                f"[{current_shape}]: Start processing of {current_fov_index + 1}/{fovs_dict_len}..."
+            )
+            capture_scene(
+                fov=current_fov,
+                fov_scale=fovs_dict[current_shape][current_fov],
+                sample_count=chosen_sample_count,
+                chosen_shape=current_shape,
+                chosen_camera="orth" if current_fov == 0 else "persp",
+                chosen_material=chosen_material,
+                chosen_reflectance=chosen_reflectance,
+                invoke_generate_priors=invoke_generate_priors,
+                invoke_generate_matlab_data=invoke_generate_matlab_data,
+            )
+
+            print(
+                f"[{current_shape}]: Processed {current_fov_index + 1}/{fovs_dict_len}"
+            )
+        print(f"Completed {current_shape_index + 1} shapes out of {shapes_dict_len}")
+
+
 if __name__ == "__main__":
-    main()
+    main_all()

@@ -1,8 +1,11 @@
 import mitsuba as mi
 import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import show, axis, imshow
 from cv2 import imwrite
-from os import path, makedirs
+from os import makedirs
+from os.path import exists
+from pickle import load as pickle_load
+
 
 # (llvm, cuda) + (mono, spectral) + (polarized)
 mi.set_variant("llvm_mono_polarized")
@@ -40,7 +43,7 @@ def load_interpolations(file_path: str):
         function: Interpolating functions.
     """
     with open(file_path, "rb") as f:
-        return pickle.load(f)
+        return pickle_load(f)
 
 
 def create_directory(directory: str):
@@ -51,7 +54,7 @@ def create_directory(directory: str):
         directory (str): path to check.
     """
     try:
-        if not path.exists(directory):
+        if not exists(directory):
             print(f"Folder '{directory}' does not exists. Starting creation...")
             makedirs(directory)
             print(f"Folder '{directory}' created successfully.")
@@ -136,10 +139,25 @@ def write_output_images(
     AOLP_pathname = f"{prefix_path}AOLP.png"
     NORMALS_pathname = f"{prefix_path}NORMALS.png"
 
-    imwrite(S0_pathname, np.clip(S0 * 255.0, 0, 255).astype(np.uint8))
-    imwrite(DOLP_pathname, (dolp * 255.0).astype(np.uint8))
-    imwrite(AOLP_pathname, angle_n)
-    imwrite(NORMALS_pathname, ((normals + 1.0) * 127.5).astype(np.uint8))
+    if not exists(S0_pathname):
+        imwrite(S0_pathname, np.clip(S0 * 255.0, 0, 255).astype(np.uint8))
+    else:
+        print(f"Following file already exists: {S0_pathname}")
+
+    if not exists(DOLP_pathname):
+        imwrite(DOLP_pathname, (dolp * 255.0).astype(np.uint8))
+    else:
+        print(f"Following file already exists: {DOLP_pathname}")
+
+    if not exists(AOLP_pathname):
+        imwrite(AOLP_pathname, angle_n)
+    else:
+        print(f"Following file already exists: {AOLP_pathname}")
+
+    if not exists(NORMALS_pathname):
+        imwrite(NORMALS_pathname, ((normals + 1.0) * 127.5).astype(np.uint8))
+    else:
+        print(f"Following file already exists: {NORMALS_pathname}")
 
 
 def extract_chosen_layers_as_numpy(
@@ -177,6 +195,6 @@ def plot_rgb_image(image: np.ndarray) -> None:
     Args:
         image (numpy.ndarray): The RGB image as a 2D NumPy array.
     """
-    plt.imshow(image)
-    plt.axis("on")
-    plt.show()
+    imshow(image)
+    axis("on")
+    show()
